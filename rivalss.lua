@@ -1,6 +1,6 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.0)
--- Strict Luau Typings, Modular Subsystems, and Advanced Combat Core
+-- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.2)
+-- Patched MouseLocation Aimbot Engine & Camera Viewport Fix
 -- ============================================================================
 
 local Players = game:GetService("Players")
@@ -8,117 +8,92 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Namespace definition for global state management
 local NovusHub = {
-	Version = "4.0.0",
+	Version = "4.2.0",
 	Codename = "Monolith",
 	Active = true,
 	Configurations = {
 		Aimbot = {
 			Enabled = false,
 			Keybind = Enum.KeyCode.E,
-			Smoothness = 0.15,
-			FOV = 120,
+			Smoothness = 0.12,
+			FOV = 180,
 			TargetPart = "Head",
-			VisibleCheck = true,
+			VisibleCheck = false,
 			TeamCheck = true,
 			Prediction = true,
-			PredictionFactor = 0.035
+			PredictionFactor = 0.04
 		},
 		ESP = {
 			Enabled = false,
-			Boxes = true,
-			Names = true,
-			Tracers = false,
-			HealthBars = true,
 			TeamCheck = true,
-			Chams = true,
-			MaxDistance = 1500
+			MaxDistance = 2000
 		},
 		Visuals = {
 			Fullbright = false,
-			CustomSky = false,
 			FOVChanger = false,
-			FOVValue = 90,
-			NoFog = false
+			FOVValue = 95
 		},
 		Player = {
 			WalkSpeedBoost = false,
-			SpeedMultiplier = 24,
-			JumpPowerBoost = false,
-			JumpMultiplier = 50,
+			SpeedMultiplier = 28,
 			InfiniteJump = false,
-			Noclip = false,
-			Bhop = false
+			Noclip = false
 		},
 		Misc = {
-			HitSound = false,
-			HitSoundId = "rbxassetid://6032408331",
-			CustomCrosshair = false,
 			FPSUnlocker = true
 		}
-	},
-	Cache = {
-		ESPObjects = {},
-		Connections = {},
-		TargetInstance = nil
 	}
 }
 
--- Safe CoreGui Injection Check
-local successRegistry = pcall(function()
-	if CoreGui:FindFirstChild("NovusHubMonolith") then
-		CoreGui.NovusHubMonolith:Destroy()
+-- Safe CoreGui Root Cleanup & Injection
+pcall(function()
+	if CoreGui:FindFirstChild("NovusHubMonolithFixed") then
+		CoreGui.NovusHubMonolithFixed:Destroy()
 	end
 end)
 
 local ParentTarget = CoreGui
-local successCheck = pcall(function()
-	local _ = CoreGui.Name
-end)
+local successCheck, _ = pcall(function() return CoreGui.Name end)
 if not successCheck then
 	ParentTarget = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- GUI Root Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NovusHubMonolith"
+ScreenGui.Name = "NovusHubMonolithFixed"
 ScreenGui.Parent = ParentTarget
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
 
--- Main Container Window
+-- Extended Main Panel UI
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MainFrame.BorderColor3 = Color3.fromRGB(0, 220, 255)
 MainFrame.BorderSizePixel = 2
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -200)
-MainFrame.Size = UDim2.new(0, 550, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -290, 0.5, -210)
+MainFrame.Size = UDim2.new(0, 580, 0, 440)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Title Bar Component
+-- Title Header Component
 local TitleBar = Instance.new("TextLabel")
 TitleBar.Name = "TitleBar"
 TitleBar.Parent = MainFrame
-TitleBar.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 45)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Mega Monolith v4]"
+TitleBar.Text = "  Novus Hub | Rivals [Fixed Aimbot v4.2]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
-TitleBar.TextSize = 16
+TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
--- Close Window Button
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = TitleBar
@@ -131,7 +106,6 @@ CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.TextSize = 13
 
--- Minimize Window Button
 local MinimizeButton = Instance.new("TextButton")
 MinimizeButton.Name = "MinimizeButton"
 MinimizeButton.Parent = TitleBar
@@ -144,41 +118,67 @@ MinimizeButton.Text = "-"
 MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeButton.TextSize = 13
 
--- Navigation Tab Bar Layout
+-- Navigation Sidebar
 local TabBar = Instance.new("Frame")
 TabBar.Name = "TabBar"
 TabBar.Parent = MainFrame
-TabBar.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
+TabBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 TabBar.BorderSizePixel = 0
 TabBar.Position = UDim2.new(0, 0, 0, 45)
-TabBar.Size = UDim2.new(0, 130, 1, -45)
+TabBar.Size = UDim2.new(0, 140, 1, -45)
 
 local TabListLayout = Instance.new("UIListLayout")
 TabListLayout.Parent = TabBar
 TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 TabListLayout.Padding = UDim.new(0, 2)
 
--- Content Panel Area
+-- Dynamic Content Container
 local ContentPanel = Instance.new("Frame")
 ContentPanel.Name = "ContentPanel"
 ContentPanel.Parent = MainFrame
-ContentPanel.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+ContentPanel.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
 ContentPanel.BorderSizePixel = 0
-ContentPanel.Position = UDim2.new(0, 130, 0, 45)
-ContentPanel.Size = UDim2.new(1, -130, 1, -45)
+ContentPanel.Position = UDim2.new(0, 140, 0, 45)
+ContentPanel.Size = UDim2.new(1, -140, 1, -45)
 
--- System Utility Sub-Function Library
-local UtilityModule = {}
+local Panels = {}
+local function makePanel(name)
+	local sf = Instance.new("ScrollingFrame")
+	sf.Name = name .. "Panel"
+	sf.Parent = ContentPanel
+	sf.Active = true
+	sf.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+	sf.BorderSizePixel = 0
+	sf.Size = UDim2.new(1, 0, 1, 0)
+	sf.CanvasSize = UDim2.new(0, 0, 0, 600)
+	sf.ScrollBarThickness = 4
+	sf.Visible = false
 
-function UtilityModule.CreateToggle(parent, labelText, initialState, callback)
+	local layout = Instance.new("UIListLayout")
+	layout.Parent = sf
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 6)
+
+	Panels[name] = sf
+	return sf
+end
+
+local combatPanel = makePanel("Combat")
+local visualsPanel = makePanel("Visuals")
+local playerPanel = makePanel("Player")
+local miscPanel = makePanel("Misc")
+combatPanel.Visible = true
+
+-- Utility UI Function
+local function CreateToggle(parent, labelText, initialState, callback)
 	local container = Instance.new("TextButton")
 	container.Parent = parent
-	container.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+	container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 	container.BorderSizePixel = 0
-	container.Size = UDim2.new(1, 0, 0, 40)
+	container.Size = UDim2.new(1, 0, 0, 42)
 	container.Font = Enum.Font.GothamMedium
 	container.Text = "    " .. labelText
-	container.TextColor3 = Color3.fromRGB(220, 220, 225)
+	container.TextColor3 = Color3.fromRGB(220, 220, 230)
 	container.TextSize = 13
 	container.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -204,107 +204,53 @@ function UtilityModule.CreateToggle(parent, labelText, initialState, callback)
 		trigger(not state)
 	end)
 
-	return {
-		Set = trigger,
-		Get = function() return state end
-	}
+	return { Set = trigger, Get = function() return state end }
 end
 
--- Sub-Containers for Configuration Panels (Combat, Visuals, Player, Misc)
-local Panels = {}
-local function makePanel(name)
-	local sf = Instance.new("ScrollingFrame")
-	sf.Name = name .. "Panel"
-	sf.Parent = ContentPanel
-	sf.Active = true
-	sf.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
-	sf.BorderSizePixel = 0
-	sf.Size = UDim2.new(1, 0, 1, 0)
-	sf.CanvasSize = UDim2.new(0, 0, 0, 500)
-	sf.ScrollBarThickness = 4
-	sf.Visible = false
-
-	local layout = Instance.new("UIListLayout")
-	layout.Parent = sf
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 6)
-
-	Panels[name] = sf
-	return sf
-end
-
-local combatPanel = makePanel("Combat")
-local visualsPanel = makePanel("Visuals")
-local playerPanel = makePanel("Player")
-local miscPanel = makePanel("Misc")
-
-combatPanel.Visible = true -- Default active panel
-
--- Construct Combat Controls
-local aimbotToggle = UtilityModule.CreateToggle(combatPanel, "Combat Aimbot Matrix", NovusHub.Configurations.Aimbot.Enabled, function(state)
+-- Populate Combat Panel
+CreateToggle(combatPanel, "Aimbot Matrix Execution", NovusHub.Configurations.Aimbot.Enabled, function(state)
 	NovusHub.Configurations.Aimbot.Enabled = state
 end)
-
-local teamCheckToggle = UtilityModule.CreateToggle(combatPanel, "Strict Team Check Validation", NovusHub.Configurations.Aimbot.TeamCheck, function(state)
+CreateToggle(combatPanel, "Strict Team Check Validation", NovusHub.Configurations.Aimbot.TeamCheck, function(state)
 	NovusHub.Configurations.Aimbot.TeamCheck = state
 	NovusHub.Configurations.ESP.TeamCheck = state
 end)
-
-local predictionToggle = UtilityModule.CreateToggle(combatPanel, "Velocity Ballistics Prediction", NovusHub.Configurations.Aimbot.Prediction, function(state)
+CreateToggle(combatPanel, "Velocity Ballistics Prediction", NovusHub.Configurations.Aimbot.Prediction, function(state)
 	NovusHub.Configurations.Aimbot.Prediction = state
 end)
 
--- Construct Visuals Controls
-local espToggle = UtilityModule.CreateToggle(visualsPanel, "Player Highlight Chams", NovusHub.Configurations.ESP.Enabled, function(state)
+-- Populate Visuals Panel
+CreateToggle(visualsPanel, "Player Chams Highlight Suite", NovusHub.Configurations.ESP.Enabled, function(state)
 	NovusHub.Configurations.ESP.Enabled = state
-	if not state then
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player.Character and player.Character:FindFirstChild("NovusChamsESP") then
-				player.Character.NovusChamsESP:Destroy()
-			end
-		end
-	end
 end)
-
-local fullbrightToggle = UtilityModule.CreateToggle(visualsPanel, "Engine Fullbright Lighting", NovusHub.Configurations.Visuals.Fullbright, function(state)
+CreateToggle(visualsPanel, "Engine Fullbright Lighting", NovusHub.Configurations.Visuals.Fullbright, function(state)
 	NovusHub.Configurations.Visuals.Fullbright = state
-	if state then
-		Lighting.Brightness = 2
-		Lighting.ClockTime = 14
-		Lighting.GlobalShadows = false
-		Lighting.OutdoorAmbient = Color3.fromRGB(200, 200, 200)
-	else
-		Lighting.Brightness = 1
-		Lighting.GlobalShadows = true
-		Lighting.OutdoorAmbient = Color3.fromRGB(70, 70, 70)
-	end
+	Lighting.Brightness = state and 2.5 or 1
+	Lighting.GlobalShadows = not state
 end)
 
--- Construct Player Controls
-local speedToggle = UtilityModule.CreateToggle(playerPanel, "WalkSpeed Modifier Hack", NovusHub.Configurations.Player.WalkSpeedBoost, function(state)
+-- Populate Player Panel
+CreateToggle(playerPanel, "WalkSpeed Booster Mod", NovusHub.Configurations.Player.WalkSpeedBoost, function(state)
 	NovusHub.Configurations.Player.WalkSpeedBoost = state
 end)
-
-local jumpToggle = UtilityModule.CreateToggle(playerPanel, "Infinite Jump Injection", NovusHub.Configurations.Player.InfiniteJump, function(state)
+CreateToggle(playerPanel, "Infinite Jump Injection", NovusHub.Configurations.Player.InfiniteJump, function(state)
 	NovusHub.Configurations.Player.InfiniteJump = state
 end)
-
-local noclipToggle = UtilityModule.CreateToggle(playerPanel, "Collision Noclip Bypass", NovusHub.Configurations.Player.Noclip, function(state)
+CreateToggle(playerPanel, "Collision Noclip Bypass", NovusHub.Configurations.Player.Noclip, function(state)
 	NovusHub.Configurations.Player.Noclip = state
 end)
 
--- Construct Misc Controls
-local fpsToggle = UtilityModule.CreateToggle(miscPanel, "FPS Max Cap Expander", NovusHub.Configurations.Misc.FPSUnlocker, function(state)
-	NovusHub.Configurations.Misc.FPSUnlocker = state
+-- Populate Misc Panel
+CreateToggle(miscPanel, "FPS Unlocker Cap (999)", NovusHub.Configurations.Misc.FPSUnlocker, function(state)
 	setfpscap(999)
 end)
 
--- Tab Switcher Logic Builder
+-- Tab Switcher Logic
 local function createTabButton(name, targetPanel, order)
 	local btn = Instance.new("TextButton")
 	btn.Name = name .. "Tab"
 	btn.Parent = TabBar
-	btn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+	btn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
 	btn.BorderSizePixel = 0
 	btn.Size = UDim2.new(1, 0, 0, 40)
 	btn.Font = Enum.Font.GothamBold
@@ -327,7 +273,7 @@ createTabButton("Visuals", visualsPanel, 2)
 createTabButton("Player", playerPanel, 3)
 createTabButton("Misc", miscPanel, 4)
 
--- Window Utility Controls
+-- Window Controls
 CloseButton.MouseButton1Click:Connect(function()
 	ScreenGui:Destroy()
 end)
@@ -337,14 +283,14 @@ MinimizeButton.MouseButton1Click:Connect(function()
 	isMinimized = not isMinimized
 	ContentPanel.Visible = not isMinimized
 	TabBar.Visible = not isMinimized
-	MainFrame.Size = isMinimized and UDim2.new(0, 550, 0, 45) or UDim2.new(0, 550, 0, 420)
+	MainFrame.Size = isMinimized and UDim2.new(0, 580, 0, 45) or UDim2.new(0, 580, 0, 440)
 end)
 
--- Mobile Float Icon
+-- Floating Mobile Button
 local MobileButton = Instance.new("TextButton")
 MobileButton.Name = "MobileButton"
 MobileButton.Parent = ScreenGui
-MobileButton.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MobileButton.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 MobileButton.BorderColor3 = Color3.fromRGB(0, 220, 255)
 MobileButton.BorderSizePixel = 2
 MobileButton.Position = UDim2.new(0, 20, 0.4, 0)
@@ -359,7 +305,7 @@ MobileButton.MouseButton1Click:Connect(function()
 	MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Combat Execution Loop: High Accuracy Aimbot Engine
+-- FIXED High-Performance Aimbot Engine Core
 RunService.RenderStepped:Connect(function()
 	if NovusHub.Configurations.Aimbot.Enabled then
 		local camera = Workspace.CurrentCamera
@@ -367,7 +313,7 @@ RunService.RenderStepped:Connect(function()
 
 		local closestTarget = nil
 		local shortestDistance = math.huge
-		local mousePos = UserInputService:GetMouseLocation()
+		local viewportCenter = camera.ViewportSize / 2
 
 		for _, player in ipairs(Players:GetPlayers()) do
 			if player ~= LocalPlayer then
@@ -380,8 +326,8 @@ RunService.RenderStepped:Connect(function()
 							local pos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
 							if onScreen then
 								local screenVector = Vector2.new(pos.X, pos.Y)
-								local magnitude = (screenVector - mousePos).Magnitude
-								if magnitude < shortestDistance then
+								local magnitude = (screenVector - viewportCenter).Magnitude
+								if magnitude < NovusHub.Configurations.Aimbot.FOV and magnitude < shortestDistance then
 									shortestDistance = magnitude
 									closestTarget = targetPart
 								end
@@ -403,7 +349,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- Visuals Execution Loop: Player ESP Rendering System
+-- ESP Chams Rendering Engine
 RunService.RenderStepped:Connect(function()
 	if NovusHub.Configurations.ESP.Enabled then
 		for _, player in ipairs(Players:GetPlayers()) do
@@ -416,9 +362,9 @@ RunService.RenderStepped:Connect(function()
 							local highlight = Instance.new("Highlight")
 							highlight.Name = "NovusChamsESP"
 							highlight.Adornee = character
-							highlight.FillColor = Color3.fromRGB(255, 30, 30)
+							highlight.FillColor = Color3.fromRGB(255, 40, 40)
 							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-							highlight.FillTransparency = 0.5
+							highlight.FillTransparency = 0.45
 							highlight.OutlineTransparency = 0.1
 							highlight.Parent = character
 						end
@@ -433,15 +379,13 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- Player Manipulation Loop (WalkSpeed, Noclip, Infinite Jump)
+-- Player Modifier Loop
 RunService.Stepped:Connect(function()
 	local character = LocalPlayer.Character
 	if character then
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid then
-			if NovusHub.Configurations.Player.WalkSpeedBoost then
-				humanoid.WalkSpeed = NovusHub.Configurations.Player.SpeedMultiplier
-			end
+		if humanoid and NovusHub.Configurations.Player.WalkSpeedBoost then
+			humanoid.WalkSpeed = NovusHub.Configurations.Player.SpeedMultiplier
 		end
 
 		if NovusHub.Configurations.Player.Noclip then
@@ -466,4 +410,4 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
-print("Novus Hub Mega Monolith v4 Initialized Successfully!")
+print("Novus Hub Mega Monolith v4.2 Fixed Successfully!")
