@@ -1,7 +1,12 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.6)
--- Complete Lock-Free Engine with BindToRenderStep, Line-of-Sight & Chat Bypasses
+-- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.7)
+-- Execution Stability Fixes & ESP State Correction
 -- ============================================================================
+
+-- Ensure the game is fully loaded before executing to prevent UI failure
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,7 +18,7 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 local NovusHub = {
-	Version = "4.6.0",
+	Version = "4.7.0",
 	Codename = "Monolith",
 	Active = true,
 	Configurations = {
@@ -49,12 +54,20 @@ local NovusHub = {
 	}
 }
 
--- Safe CoreGui Root Cleanup & Injection
+local UI_NAME = "NovusHubMonolithv47"
+
+-- Aggressive Cleanup: Check both CoreGui and PlayerGui for old instances
 pcall(function()
-	if CoreGui:FindFirstChild("NovusHubMonolithv46") then
-		CoreGui.NovusHubMonolithv46:Destroy()
-	end
 	RunService:UnbindFromRenderStep("NovusAimbotEngine")
+	if CoreGui:FindFirstChild(UI_NAME) then
+		CoreGui[UI_NAME]:Destroy()
+	end
+	if LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild(UI_NAME) then
+		LocalPlayer.PlayerGui[UI_NAME]:Destroy()
+	end
+	-- Clean up v4.6 just in case it's stuck
+	if CoreGui:FindFirstChild("NovusHubMonolithv46") then CoreGui.NovusHubMonolithv46:Destroy() end
+	if LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("NovusHubMonolithv46") then LocalPlayer.PlayerGui.NovusHubMonolithv46:Destroy() end
 end)
 
 local ParentTarget = CoreGui
@@ -64,7 +77,7 @@ if not successCheck then
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NovusHubMonolithv46"
+ScreenGui.Name = UI_NAME
 ScreenGui.Parent = ParentTarget
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
@@ -89,7 +102,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 45)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Engine Fix v4.6]"
+TitleBar.Text = "  Novus Hub | Rivals [Stable UI v4.7]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -346,8 +359,7 @@ local function IsPartVisible(targetPart, character)
 	return result == nil
 end
 
--- SMOOTH BIND-TO-RENDER-STEP AIMBOT ENGINE (v4.6)
--- Executes AFTER camera core updates (Enum.RenderPriority.Camera.Value + 1) to completely prevent stuttering
+-- SMOOTH BIND-TO-RENDER-STEP AIMBOT ENGINE
 RunService:BindToRenderStep("NovusAimbotEngine", Enum.RenderPriority.Camera.Value + 1, function()
 	if NovusHub.Configurations.Aimbot.Enabled and NovusHub.Configurations.Aimbot.IsHoldingKey then
 		local camera = Workspace.CurrentCamera
@@ -400,29 +412,31 @@ RunService:BindToRenderStep("NovusAimbotEngine", Enum.RenderPriority.Camera.Valu
 	end
 end)
 
--- ESP Chams Rendering Engine
+-- ESP Chams Rendering Engine (STATE FIX APPLIED)
 RunService.RenderStepped:Connect(function()
-	if NovusHub.Configurations.ESP.Enabled then
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer then
-				local character = player.Character
-				if character and character:FindFirstChild("HumanoidRootPart") then
-					local isTeammate = NovusHub.Configurations.ESP.TeamCheck and player.Team and player.Team == LocalPlayer.Team
-					if not isTeammate then
-						if not character:FindFirstChild("NovusChamsESP") then
-							local highlight = Instance.new("Highlight")
-							highlight.Name = "NovusChamsESP"
-							highlight.Adornee = character
-							highlight.FillColor = Color3.fromRGB(255, 40, 40)
-							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-							highlight.FillTransparency = 0.45
-							highlight.OutlineTransparency = 0.1
-							highlight.Parent = character
-						end
-					else
-						if character:FindFirstChild("NovusChamsESP") then
-							character.NovusChamsESP:Destroy()
-						end
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local character = player.Character
+			if character and character:FindFirstChild("HumanoidRootPart") then
+				local highlight = character:FindFirstChild("NovusChamsESP")
+				local isTeammate = NovusHub.Configurations.ESP.TeamCheck and player.Team and player.Team == LocalPlayer.Team
+				
+				-- Check if ESP should be active for this specific player
+				if NovusHub.Configurations.ESP.Enabled and not isTeammate then
+					if not highlight then
+						highlight = Instance.new("Highlight")
+						highlight.Name = "NovusChamsESP"
+						highlight.Adornee = character
+						highlight.FillColor = Color3.fromRGB(255, 40, 40)
+						highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+						highlight.FillTransparency = 0.45
+						highlight.OutlineTransparency = 0.1
+						highlight.Parent = character
+					end
+				else
+					-- Clean up the highlight if ESP is disabled or they became a teammate
+					if highlight then
+						highlight:Destroy()
 					end
 				end
 			end
@@ -461,4 +475,4 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
-print("Novus Hub Mega Monolith v4.6 Fully Fixed Build Running!")
+print("Novus Hub Mega Monolith v4.7 State Fixed Build Running!")
