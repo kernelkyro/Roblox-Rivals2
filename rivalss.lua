@@ -1,35 +1,33 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (ULTIMATE ADVANCED EDITION)
--- Compatible with Android & PC | Robust Error Handling & Extended Features
+-- NOVUS HUB - ROBLOX RIVALS (ULTIMATE ULTRA-ROBUST EDITION)
+-- Compatible with Android & PC | Strict Null-Safety & Frame-Safe Aim Matrix
 -- ============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
-local CurrentCamera = Workspace.CurrentCamera
 
--- Safety check for CoreGui access
-local successRegistry, registryError = pcall(function()
+-- Safe CoreGui Parent Detection to prevent execution initialization fails
+local successRegistry = pcall(function()
 	if CoreGui:FindFirstChild("NovusHubUltimate") then
 		CoreGui.NovusHubUltimate:Destroy()
 	end
 end)
 
-if not successRegistry then
-	warn("NovusHub: CoreGui restricted, falling back to PlayerGui.")
-end
-
 local ParentTarget = CoreGui
-if not pcall(function() local _ = CoreGui.Name end) then
+local successCheck = pcall(function()
+	local _ = CoreGui.Name
+end)
+
+if not successCheck then
 	ParentTarget = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- ScreenGui Setup
+-- ScreenGui Initialization
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NovusHubUltimate"
 ScreenGui.Parent = ParentTarget
@@ -56,7 +54,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Ultimate v2]"
+TitleBar.Text = "  Novus Hub | Rivals [Ultimate v3]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 190, 255)
 TitleBar.TextSize = 15.000
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -108,11 +106,10 @@ UIListLayout.Padding = UDim.new(0, 8)
 local ScriptConfig = {
 	Aimbot = false,
 	ESP = false,
-	AimbotFOV = 120,
 	TeamCheck = true
 }
 
--- Utility: Create Custom Modern Toggles
+-- Utility: Create Custom Modern Toggles safely
 local function buildToggleUI(labelText, defaultState, callback)
 	local ToggleButton = Instance.new("TextButton")
 	ToggleButton.Parent = ScrollingContainer
@@ -131,7 +128,7 @@ local function buildToggleUI(labelText, defaultState, callback)
 	StatusBadge.Position = UDim2.new(1, -95, 0, 0)
 	StatusBadge.Size = UDim2.new(0, 85, 1, 0)
 	StatusBadge.Font = Enum.Font.GothamBold
-	StatusBadge.Text = defaultState and "[ ACTIVE ]" else "[ OFF ]"
+	StatusBadge.Text = defaultState and "[ ACTIVE ]" or "[ OFF ]"
 	StatusBadge.TextColor3 = defaultState and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 60, 60)
 	StatusBadge.TextSize = 12.000
 
@@ -220,7 +217,7 @@ UserInputService.InputBegan:Connect(function(inputObject, gameProcessedEvent)
 	end
 end)
 
--- Core Feature Loop: Advanced ESP System
+-- Core Feature Loop: Advanced ESP System with Team Protection
 RunService.RenderStepped:Connect(function()
 	if ScriptConfig.ESP then
 		for _, player in ipairs(Players:GetPlayers()) do
@@ -250,13 +247,11 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- Core Feature Loop: Robust Enemy Aim Locking System
+-- Core Feature Loop: Guaranteed Aim Lock Execution
 RunService.RenderStepped:Connect(function()
 	if ScriptConfig.Aimbot then
-		if not CurrentCamera then 
-			CurrentCamera = Workspace.CurrentCamera 
-			return 
-		end
+		local currentCamera = Workspace.CurrentCamera
+		if not currentCamera then return end
 		
 		local targetPart = nil
 		local minDistanceToCenter = math.huge
@@ -270,7 +265,7 @@ RunService.RenderStepped:Connect(function()
 					if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
 						local aimPart = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
 						if aimPart then
-							local screenPoint, onScreen = CurrentCamera:WorldToViewportPoint(aimPart.Position)
+							local screenPoint, onScreen = currentCamera:WorldToViewportPoint(aimPart.Position)
 							if onScreen then
 								local screenVector = Vector2.new(screenPoint.X, screenPoint.Y)
 								local distanceFromMouse = (screenVector - mouseLocation).Magnitude
@@ -287,9 +282,9 @@ RunService.RenderStepped:Connect(function()
 		end
 
 		if targetPart then
-			CurrentCamera.CFrame = CFrame.new(CurrentCamera.CFrame.Position, targetPart.Position)
+			currentCamera.CFrame = CFrame.new(currentCamera.CFrame.Position, targetPart.Position)
 		end
 	end
 end)
 
-print("Novus Hub Ultimate Loaded Successfully!")
+print("Novus Hub Ultimate Fully Operational!")
