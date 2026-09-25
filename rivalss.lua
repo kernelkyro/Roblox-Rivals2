@@ -1,244 +1,295 @@
--- Novus Hub - Roblox Rivals
--- Compatible with Android & PC
+-- ============================================================================
+-- NOVUS HUB - ROBLOX RIVALS (ULTIMATE ADVANCED EDITION)
+-- Compatible with Android & PC | Robust Error Handling & Extended Features
+-- ============================================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
--- Prevent multiple instances
-if CoreGui:FindFirstChild("NovusHub") then
-	CoreGui.NovusHub:Destroy()
+local LocalPlayer = Players.LocalPlayer
+local CurrentCamera = Workspace.CurrentCamera
+
+-- Safety check for CoreGui access
+local successRegistry, registryError = pcall(function()
+	if CoreGui:FindFirstChild("NovusHubUltimate") then
+		CoreGui.NovusHubUltimate:Destroy()
+	end
+end)
+
+if not successRegistry then
+	warn("NovusHub: CoreGui restricted, falling back to PlayerGui.")
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NovusHub"
-ScreenGui.Parent = CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local ParentTarget = CoreGui
+if not pcall(function() local _ = CoreGui.Name end) then
+	ParentTarget = LocalPlayer:WaitForChild("PlayerGui")
+end
 
--- Main Frame
+-- ScreenGui Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NovusHubUltimate"
+ScreenGui.Parent = ParentTarget
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+
+-- Main Floating Panel
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainFrame.BorderColor3 = Color3.fromRGB(0, 170, 255)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+MainFrame.BorderColor3 = Color3.fromRGB(0, 190, 255)
 MainFrame.BorderSizePixel = 2
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
-MainFrame.Size = UDim2.new(0, 350, 0, 250)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 400, 0, 320)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Title Bar
+-- Title Header
 local TitleBar = Instance.new("TextLabel")
 TitleBar.Name = "TitleBar"
 TitleBar.Parent = MainFrame
-TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals"
-TitleBar.TextColor3 = Color3.fromRGB(0, 170, 255)
-TitleBar.TextSize = 16.000
+TitleBar.Text = "  Novus Hub | Rivals [Ultimate v2]"
+TitleBar.TextColor3 = Color3.fromRGB(0, 190, 255)
+TitleBar.TextSize = 15.000
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
--- Close Button
+-- Action Buttons Container
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = TitleBar
-CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseButton.BackgroundColor3 = Color3.fromRGB(235, 50, 50)
 CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(1, -30, 0, 5)
-CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -35, 0, 7)
+CloseButton.Size = UDim2.new(0, 26, 0, 26)
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 14.000
+CloseButton.TextSize = 13.000
 
--- Minimize Button
 local MinimizeButton = Instance.new("TextButton")
 MinimizeButton.Name = "MinimizeButton"
 MinimizeButton.Parent = TitleBar
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
 MinimizeButton.BorderSizePixel = 0
-MinimizeButton.Position = UDim2.new(1, -60, 0, 5)
-MinimizeButton.Size = UDim2.new(0, 25, 0, 25)
+MinimizeButton.Position = UDim2.new(1, -70, 0, 7)
+MinimizeButton.Size = UDim2.new(0, 26, 0, 26)
 MinimizeButton.Font = Enum.Font.GothamBold
 MinimizeButton.Text = "-"
 MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.TextSize = 14.000
+MinimizeButton.TextSize = 13.000
 
--- Container for toggles
-local Container = Instance.new("ScrollingFrame")
-Container.Name = "Container"
-Container.Parent = MainFrame
-Container.Active = true
-Container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Container.BorderSizePixel = 0
-Container.Position = UDim2.new(0, 10, 0, 45)
-Container.Size = UDim2.new(1, -20, 1, -55)
-Container.CanvasSize = UDim2.new(0, 0, 0, 120)
-Container.ScrollBarThickness = 4
+-- Tab Container Frame
+local ScrollingContainer = Instance.new("ScrollingFrame")
+ScrollingContainer.Name = "ScrollingContainer"
+ScrollingContainer.Parent = MainFrame
+ScrollingContainer.Active = true
+ScrollingContainer.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+ScrollingContainer.BorderSizePixel = 0
+ScrollingContainer.Position = UDim2.new(0, 12, 0, 52)
+ScrollingContainer.Size = UDim2.new(1, -24, 1, -64)
+ScrollingContainer.CanvasSize = UDim2.new(0, 0, 0, 220)
+ScrollingContainer.ScrollBarThickness = 5
 
--- UI Toggle Creator Function
-local function createToggle(name, defaultState, callback)
-	local yPos = (#Container:GetChildren() - 1) * 45
+-- Layout Engine for Elements
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+
+-- Feature Configurations & States
+local ScriptConfig = {
+	Aimbot = false,
+	ESP = false,
+	AimbotFOV = 120,
+	TeamCheck = true
+}
+
+-- Utility: Create Custom Modern Toggles
+local function buildToggleUI(labelText, defaultState, callback)
+	local ToggleButton = Instance.new("TextButton")
+	ToggleButton.Parent = ScrollingContainer
+	ToggleButton.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+	ToggleButton.BorderSizePixel = 0
+	ToggleButton.Size = UDim2.new(1, 0, 0, 42)
+	ToggleButton.Font = Enum.Font.GothamMedium
+	ToggleButton.Text = "    " .. labelText
+	ToggleButton.TextColor3 = Color3.fromRGB(230, 230, 230)
+	ToggleButton.TextSize = 14.000
+	ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
+
+	local StatusBadge = Instance.new("TextLabel")
+	StatusBadge.Parent = ToggleButton
+	StatusBadge.BackgroundTransparency = 1.000
+	StatusBadge.Position = UDim2.new(1, -95, 0, 0)
+	StatusBadge.Size = UDim2.new(0, 85, 1, 0)
+	StatusBadge.Font = Enum.Font.GothamBold
+	StatusBadge.Text = defaultState and "[ ACTIVE ]" else "[ OFF ]"
+	StatusBadge.TextColor3 = defaultState and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 60, 60)
+	StatusBadge.TextSize = 12.000
+
+	local currentState = defaultState
 	
-	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Name = name .. "Toggle"
-	ToggleBtn.Parent = Container
-	ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	ToggleBtn.BorderSizePixel = 0
-	ToggleBtn.Position = UDim2.new(0, 0, 0, yPos)
-	ToggleBtn.Size = UDim2.new(1, 0, 0, 35)
-	ToggleBtn.Font = Enum.Font.Gotham
-	ToggleBtn.Text = "  " .. name
-	ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	ToggleBtn.TextSize = 14.000
-	ToggleBtn.TextXAlignment = Enum.TextXAlignment.Left
-
-	local StatusLabel = Instance.new("TextLabel")
-	StatusLabel.Name = "Status"
-	StatusLabel.Parent = ToggleBtn
-	StatusLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	StatusLabel.BackgroundTransparency = 1.000
-	StatusLabel.Position = UDim2.new(1, -80, 0, 0)
-	StatusLabel.Size = UDim2.new(0, 70, 1, 0)
-	StatusLabel.Font = Enum.Font.GothamBold
-	StatusLabel.Text = defaultState and "ON" or "OFF"
-	StatusLabel.TextColor3 = defaultState and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-	StatusLabel.TextSize = 14.000
-
-	local state = defaultState
-	ToggleBtn.MouseButton1Click:Connect(function()
-		state = not state
-		StatusLabel.Text = state and "ON" or "OFF"
-		StatusLabel.TextColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-		callback(state)
-	end)
-	
-	return function(newState)
-		if newState ~= nil then state = newState end
-		StatusLabel.Text = state and "ON" or "OFF"
-		StatusLabel.TextColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-		callback(state)
-		return state
+	local function updateVisuals(state)
+		currentState = state
+		StatusBadge.Text = state and "[ ACTIVE ]" or "[ OFF ]"
+		StatusBadge.TextColor3 = state and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 60, 60)
+		pcall(callback, state)
 	end
+
+	ToggleButton.MouseButton1Click:Connect(function()
+		updateVisuals(not currentState)
+	end)
+
+	return {
+		Set = updateVisuals,
+		Get = function() return currentState end
+	}
 end
 
--- Feature States
-local AimbotEnabled = false
-local ESPEnabled = false
-
--- Toggle Callbacks
-local toggleAimbot = createToggle("Enemy Aimbot [Key: E]", false, function(state)
-	AimbotEnabled = state
+-- Build Toggles on UI Layout
+local AimbotControl = buildToggleUI("Enemy Aimbot [Key: E]", false, function(state)
+	ScriptConfig.Aimbot = state
 end)
 
-local toggleESP = createToggle("Enemy ESP [Key: R]", false, function(state)
-	ESPEnabled = state
+local ESPControl = buildToggleUI("Enemy Highlight ESP [Key: R]", false, function(state)
+	ScriptConfig.ESP = state
 	if not state then
 		for _, player in ipairs(Players:GetPlayers()) do
-			if player.Character and player.Character:FindFirstChild("NovusESP") then
-				player.Character.NovusESP:Destroy()
+			if player.Character and player.Character:FindFirstChild("NovusHighlightESP") then
+				player.Character.NovusHighlightESP:Destroy()
 			end
 		end
 	end
 end)
 
--- Mobile Toggle Button (Floating UI icon for Android/Mobile users)
-local MobileButton = Instance.new("TextButton")
-MobileButton.Name = "MobileButton"
-MobileButton.Parent = ScreenGui
-MobileButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MobileButton.BorderColor3 = Color3.fromRGB(0, 170, 255)
-MobileButton.BorderSizePixel = 2
-MobileButton.Position = UDim2.new(0, 10, 0.4, 0)
-MobileButton.Size = UDim2.new(0, 50, 0, 50)
-MobileButton.Font = Enum.Font.GothamBold
-MobileButton.Text = "NOVUS"
-MobileButton.TextColor3 = Color3.fromRGB(0, 170, 255)
-MobileButton.TextSize = 10.000
-MobileButton.Draggable = true
+local TeamCheckControl = buildToggleUI("Strict Team Validation", true, function(state)
+	ScriptConfig.TeamCheck = state
+end)
 
-MobileButton.MouseButton1Click:Connect(function()
+-- Mobile Floating Icon Handler (Android Compatibility)
+local MobileFloatingBtn = Instance.new("TextButton")
+MobileFloatingBtn.Name = "MobileFloatingBtn"
+MobileFloatingBtn.Parent = ScreenGui
+MobileFloatingBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MobileFloatingBtn.BorderColor3 = Color3.fromRGB(0, 190, 255)
+MobileFloatingBtn.BorderSizePixel = 2
+MobileFloatingBtn.Position = UDim2.new(0, 15, 0.35, 0)
+MobileFloatingBtn.Size = UDim2.new(0, 55, 0, 55)
+MobileFloatingBtn.Font = Enum.Font.GothamBold
+MobileFloatingBtn.Text = "NOVUS"
+MobileFloatingBtn.TextColor3 = Color3.fromRGB(0, 190, 255)
+MobileFloatingBtn.TextSize = 11.000
+MobileFloatingBtn.Draggable = true
+
+MobileFloatingBtn.MouseButton1Click:Connect(function()
 	MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Close UI Action
+-- UI Interactive Controls
 CloseButton.MouseButton1Click:Connect(function()
 	ScreenGui:Destroy()
 end)
 
--- Minimize UI Action
-local minimized = false
+local isMinimized = false
 MinimizeButton.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	Container.Visible = not minimized
-	MainFrame.Size = minimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 250)
+	isMinimized = not isMinimized
+	ScrollingContainer.Visible = not isMinimized
+	MainFrame.Size = isMinimized and UDim2.new(0, 400, 0, 40) or UDim2.new(0, 400, 0, 320)
 end)
 
--- PC Hotkeys Logic
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
+-- Hotkey System (PC Input Handling)
+UserInputService.InputBegan:Connect(function(inputObject, gameProcessedEvent)
+	if gameProcessedEvent then return end
 	
-	if input.KeyCode == Enum.KeyCode.E then
-		AimbotEnabled = toggleAimbot()
-	elseif input.KeyCode == Enum.KeyCode.R then
-		ESPEnabled = toggleESP()
-	elseif input.KeyCode == Enum.KeyCode.RightShift then
-		minimized = not minimized
-		Container.Visible = not minimized
-		MainFrame.Size = minimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 250)
+	if inputObject.KeyCode == Enum.KeyCode.E then
+		AimbotControl.Set(not AimbotControl.Get())
+	elseif inputObject.KeyCode == Enum.KeyCode.R then
+		ESPControl.Set(not ESPControl.Get())
+	elseif inputObject.KeyCode == Enum.KeyCode.RightShift then
+		isMinimized = not isMinimized
+		ScrollingContainer.Visible = not isMinimized
+		MainFrame.Size = isMinimized and UDim2.new(0, 400, 0, 40) or UDim2.new(0, 400, 0, 320)
 	end
 end)
 
--- ESP Implementation
+-- Core Feature Loop: Advanced ESP System
 RunService.RenderStepped:Connect(function()
-	if ESPEnabled then
+	if ScriptConfig.ESP then
 		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				local char = player.Character
-				if not char:FindFirstChild("NovusESP") then
-					local highlight = Instance.new("Highlight")
-					highlight.Name = "NovusESP"
-					highlight.Adornee = char
-					highlight.FillColor = Color3.fromRGB(255, 0, 0)
-					highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-					highlight.FillTransparency = 0.5
-					highlight.Parent = char
-				end
-			end
-		end
-	end
-end)
-
--- Aimbot Implementation (Targets closest enemy player)
-RunService.RenderStepped:Connect(function()
-	if AimbotEnabled then
-		local camera = workspace.CurrentCamera
-		local closestTarget = nil
-		local shortestDistance = math.huge
-		
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-				local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
-				if targetPart then
-					local screenPoint, onScreen = camera:WorldToViewportPoint(targetPart.Position)
-					if onScreen then
-						local mousePos = UserInputService:GetMouseLocation()
-						local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-						if distance < shortestDistance then
-							shortestDistance = distance
-							closestTarget = targetPart
+			if player ~= LocalPlayer then
+				local character = player.Character
+				if character and character:FindFirstChild("HumanoidRootPart") then
+					local isTeammate = ScriptConfig.TeamCheck and player.Team and player.Team == LocalPlayer.Team
+					if not isTeammate then
+						if not character:FindFirstChild("NovusHighlightESP") then
+							local highlightInstance = Instance.new("Highlight")
+							highlightInstance.Name = "NovusHighlightESP"
+							highlightInstance.Adornee = character
+							highlightInstance.FillColor = Color3.fromRGB(255, 30, 30)
+							highlightInstance.OutlineColor = Color3.fromRGB(255, 255, 255)
+							highlightInstance.FillTransparency = 0.45
+							highlightInstance.OutlineTransparency = 0.1
+							highlightInstance.Parent = character
+						end
+					else
+						if character:FindFirstChild("NovusHighlightESP") then
+							character.NovusHighlightESP:Destroy()
 						end
 					end
 				end
 			end
 		end
+	end
+end)
+
+-- Core Feature Loop: Robust Enemy Aim Locking System
+RunService.RenderStepped:Connect(function()
+	if ScriptConfig.Aimbot then
+		if not CurrentCamera then 
+			CurrentCamera = Workspace.CurrentCamera 
+			return 
+		end
 		
-		if closestTarget then
-			camera.CFrame = CFrame.new(camera.CFrame.Position, closestTarget.Position)
+		local targetPart = nil
+		local minDistanceToCenter = math.huge
+		local mouseLocation = UserInputService:GetMouseLocation()
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer then
+				local isTeammate = ScriptConfig.TeamCheck and player.Team and player.Team == LocalPlayer.Team
+				if not isTeammate then
+					local char = player.Character
+					if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+						local aimPart = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+						if aimPart then
+							local screenPoint, onScreen = CurrentCamera:WorldToViewportPoint(aimPart.Position)
+							if onScreen then
+								local screenVector = Vector2.new(screenPoint.X, screenPoint.Y)
+								local distanceFromMouse = (screenVector - mouseLocation).Magnitude
+								
+								if distanceFromMouse < minDistanceToCenter then
+									minDistanceToCenter = distanceFromMouse
+									targetPart = aimPart
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+
+		if targetPart then
+			CurrentCamera.CFrame = CFrame.new(CurrentCamera.CFrame.Position, targetPart.Position)
 		end
 	end
 end)
+
+print("Novus Hub Ultimate Loaded Successfully!")
