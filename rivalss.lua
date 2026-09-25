@@ -1,6 +1,6 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.4)
--- Fully Rewritten Mouse-Locked Aimbot Engine with Raw Camera CFrame Override
+-- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.5)
+-- Fixed Input-Gated Hold-to-Aim Keybind Architecture
 -- ============================================================================
 
 local Players = game:GetService("Players")
@@ -13,13 +13,14 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 local NovusHub = {
-	Version = "4.4.0",
+	Version = "4.5.0",
 	Codename = "Monolith",
 	Active = true,
 	Configurations = {
 		Aimbot = {
 			Enabled = false,
 			Keybind = Enum.KeyCode.E,
+			IsHoldingKey = false,
 			Smoothness = 0.15,
 			FOV = 400,
 			TargetPart = "Head",
@@ -48,8 +49,8 @@ local NovusHub = {
 
 -- Safe CoreGui Root Cleanup & Injection
 pcall(function()
-	if CoreGui:FindFirstChild("NovusHubMonolithLocked") then
-		CoreGui.NovusHubMonolithLocked:Destroy()
+	if CoreGui:FindFirstChild("NovusHubMonolithFixedKeybind") then
+		CoreGui.NovusHubMonolithFixedKeybind:Destroy()
 	end
 end)
 
@@ -60,7 +61,7 @@ if not successCheck then
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NovusHubMonolithLocked"
+ScreenGui.Name = "NovusHubMonolithFixedKeybind"
 ScreenGui.Parent = ParentTarget
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
@@ -85,7 +86,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 45)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Locked Override v4.4]"
+TitleBar.Text = "  Novus Hub | Rivals [Fixed Keybind v4.5]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -204,7 +205,7 @@ local function CreateToggle(parent, labelText, initialState, callback)
 end
 
 -- Populate Panels
-CreateToggle(combatPanel, "Aimbot Matrix Execution", NovusHub.Configurations.Aimbot.Enabled, function(state)
+CreateToggle(combatPanel, "Aimbot Master Toggle", NovusHub.Configurations.Aimbot.Enabled, function(state)
 	NovusHub.Configurations.Aimbot.Enabled = state
 end)
 CreateToggle(combatPanel, "Strict Team Check Validation", NovusHub.Configurations.Aimbot.TeamCheck, function(state)
@@ -296,10 +297,23 @@ MobileButton.MouseButton1Click:Connect(function()
 	MainFrame.Visible = not MainFrame.Visible
 end)
 
--- ABSOLUTE BULLETPROOF AIMBOT ENGINE (v4.4)
--- Bypasses dead viewports by using absolute screen centers and direct Camera CFrame vector tracking.
+-- Track Key Down and Key Up Events for Hold-to-Aim (Key E)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.KeyCode == NovusHub.Configurations.Aimbot.Keybind then
+		NovusHub.Configurations.Aimbot.IsHoldingKey = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if input.KeyCode == NovusHub.Configurations.Aimbot.Keybind then
+		NovusHub.Configurations.Aimbot.IsHoldingKey = false
+	end
+end)
+
+-- FULLY CORRECTED AIMBOT ENGINE (v4.5)
+-- Now strictly requires Master Toggle to be ON AND the keybind (E) to be held down.
 RunService.RenderStepped:Connect(function()
-	if NovusHub.Configurations.Aimbot.Enabled then
+	if NovusHub.Configurations.Aimbot.Enabled and NovusHub.Configurations.Aimbot.IsHoldingKey then
 		local camera = Workspace.CurrentCamera
 		if not camera then return end
 
@@ -408,4 +422,4 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
-print("Novus Hub Mega Monolith v4.4 Locked Override Deployed!")
+print("Novus Hub Mega Monolith v4.5 Fixed Keybind Active!")
