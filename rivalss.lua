@@ -1,425 +1,392 @@
--- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.5)
--- Fixed Input-Gated Hold-to-Aim Keybind Architecture
--- ============================================================================
+-- ============================================================
+-- NOVUS AIM ASSIST + ESP CORE
+-- For your own Roblox Studio experience
+-- ============================================================
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
 
-local NovusHub = {
-	Version = "4.5.0",
-	Codename = "Monolith",
-	Active = true,
-	Configurations = {
-		Aimbot = {
-			Enabled = false,
-			Keybind = Enum.KeyCode.E,
-			IsHoldingKey = false,
-			Smoothness = 0.15,
-			FOV = 400,
-			TargetPart = "Head",
-			TeamCheck = true,
-			Prediction = true,
-			PredictionFactor = 0.038
-		},
-		ESP = {
-			Enabled = false,
-			TeamCheck = true
-		},
-		Visuals = {
-			Fullbright = false
-		},
-		Player = {
-			WalkSpeedBoost = false,
-			SpeedMultiplier = 28,
-			InfiniteJump = false,
-			Noclip = false
-		},
-		Misc = {
-			FPSUnlocker = true
-		}
+local Config = {
+	Aimbot = {
+		Enabled = false,
+		Keybind = Enum.KeyCode.E,
+		IsHoldingKey = false,
+
+		Smoothness = 0.15,
+		FOV = 400,
+		TargetPart = "Head",
+
+		TeamCheck = true,
+
+		Prediction = true,
+		PredictionFactor = 0.038,
+
+		RequireLineOfSight = false
+	},
+
+	ESP = {
+		Enabled = false,
+		TeamCheck = true
 	}
 }
 
--- Safe CoreGui Root Cleanup & Injection
-pcall(function()
-	if CoreGui:FindFirstChild("NovusHubMonolithFixedKeybind") then
-		CoreGui.NovusHubMonolithFixedKeybind:Destroy()
-	end
-end)
+-- ============================================================
+-- TEAM / ENEMY VALIDATION
+-- ============================================================
 
-local ParentTarget = CoreGui
-local successCheck, _ = pcall(function() return CoreGui.Name end)
-if not successCheck then
-	ParentTarget = LocalPlayer:WaitForChild("PlayerGui")
+local function IsEnemy(player)
+	if not player or player == LocalPlayer then
+		return false
+	end
+
+	if not Config.Aimbot.TeamCheck then
+		return true
+	end
+
+	-- Never treat an unknown team as an enemy.
+	if not player.Team or not LocalPlayer.Team then
+		return false
+	end
+
+	return player.Team ~= LocalPlayer.Team
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NovusHubMonolithFixedKeybind"
-ScreenGui.Parent = ParentTarget
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
+local function IsESPEnemy(player)
+	if not player or player == LocalPlayer then
+		return false
+	end
 
--- Extended Main Panel UI
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
-MainFrame.BorderColor3 = Color3.fromRGB(0, 220, 255)
-MainFrame.BorderSizePixel = 2
-MainFrame.Position = UDim2.new(0.5, -290, 0.5, -210)
-MainFrame.Size = UDim2.new(0, 580, 0, 440)
-MainFrame.Active = true
-MainFrame.Draggable = true
+	if not Config.ESP.TeamCheck then
+		return true
+	end
 
--- Title Header Component
-local TitleBar = Instance.new("TextLabel")
-TitleBar.Name = "TitleBar"
-TitleBar.Parent = MainFrame
-TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 45)
-TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Fixed Keybind v4.5]"
-TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
-TitleBar.TextSize = 15
-TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+	if not player.Team or not LocalPlayer.Team then
+		return false
+	end
 
-local CloseButton = Instance.new("TextButton")
-CloseButton.Name = "CloseButton"
-CloseButton.Parent = TitleBar
-CloseButton.BackgroundColor3 = Color3.fromRGB(235, 45, 45)
-CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(1, -40, 0, 9)
-CloseButton.Size = UDim2.new(0, 28, 0, 28)
-CloseButton.Font = Enum.Font.GothamBold
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 13
-
-local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Name = "MinimizeButton"
-MinimizeButton.Parent = TitleBar
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-MinimizeButton.BorderSizePixel = 0
-MinimizeButton.Position = UDim2.new(1, -76, 0, 9)
-MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
-MinimizeButton.Font = Enum.Font.GothamBold
-MinimizeButton.Text = "-"
-MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.TextSize = 13
-
--- Navigation Sidebar
-local TabBar = Instance.new("Frame")
-TabBar.Name = "TabBar"
-TabBar.Parent = MainFrame
-TabBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-TabBar.BorderSizePixel = 0
-TabBar.Position = UDim2.new(0, 0, 0, 45)
-TabBar.Size = UDim2.new(0, 140, 1, -45)
-
-local TabListLayout = Instance.new("UIListLayout")
-TabListLayout.Parent = TabBar
-TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabListLayout.Padding = UDim.new(0, 2)
-
--- Dynamic Content Container
-local ContentPanel = Instance.new("Frame")
-ContentPanel.Name = "ContentPanel"
-ContentPanel.Parent = MainFrame
-ContentPanel.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-ContentPanel.BorderSizePixel = 0
-ContentPanel.Position = UDim2.new(0, 140, 0, 45)
-ContentPanel.Size = UDim2.new(1, -140, 1, -45)
-
-local Panels = {}
-local function makePanel(name)
-	local sf = Instance.new("ScrollingFrame")
-	sf.Name = name .. "Panel"
-	sf.Parent = ContentPanel
-	sf.Active = true
-	sf.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-	sf.BorderSizePixel = 0
-	sf.Size = UDim2.new(1, 0, 1, 0)
-	sf.CanvasSize = UDim2.new(0, 0, 0, 600)
-	sf.ScrollBarThickness = 4
-	sf.Visible = false
-
-	local layout = Instance.new("UIListLayout")
-	layout.Parent = sf
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 6)
-
-	Panels[name] = sf
-	return sf
+	return player.Team ~= LocalPlayer.Team
 end
 
-local combatPanel = makePanel("Combat")
-local visualsPanel = makePanel("Visuals")
-local playerPanel = makePanel("Player")
-local miscPanel = makePanel("Misc")
-combatPanel.Visible = true
+-- ============================================================
+-- CHARACTER VALIDATION
+-- ============================================================
 
--- Utility UI Function
-local function CreateToggle(parent, labelText, initialState, callback)
-	local container = Instance.new("TextButton")
-	container.Parent = parent
-	container.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-	container.BorderSizePixel = 0
-	container.Size = UDim2.new(1, 0, 0, 42)
-	container.Font = Enum.Font.GothamMedium
-	container.Text = "    " .. labelText
-	container.TextColor3 = Color3.fromRGB(220, 220, 230)
-	container.TextSize = 13
-	container.TextXAlignment = Enum.TextXAlignment.Left
-
-	local badge = Instance.new("TextLabel")
-	badge.Parent = container
-	badge.BackgroundTransparency = 1
-	badge.Position = UDim2.new(1, -95, 0, 0)
-	badge.Size = UDim2.new(0, 85, 1, 0)
-	badge.Font = Enum.Font.GothamBold
-	badge.Text = initialState and "[ ACTIVE ]" or "[ OFF ]"
-	badge.TextColor3 = initialState and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 50, 50)
-	badge.TextSize = 11
-
-	local state = initialState
-	local function trigger(newState)
-		state = newState
-		badge.Text = state and "[ ACTIVE ]" or "[ OFF ]"
-		badge.TextColor3 = state and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 50, 50)
-		pcall(callback, state)
+local function GetValidCharacter(player)
+	if not player then
+		return nil, nil, nil
 	end
 
-	container.MouseButton1Click:Connect(function()
-		trigger(not state)
-	end)
+	local character = player.Character
+	if not character then
+		return nil, nil, nil
+	end
 
-	return { Set = trigger, Get = function() return state end }
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return nil, nil, nil
+	end
+
+	local targetPart =
+		character:FindFirstChild(Config.Aimbot.TargetPart)
+		or character:FindFirstChild("HumanoidRootPart")
+
+	if not targetPart or not targetPart:IsA("BasePart") then
+		return nil, nil, nil
+	end
+
+	return character, humanoid, targetPart
 end
 
--- Populate Panels
-CreateToggle(combatPanel, "Aimbot Master Toggle", NovusHub.Configurations.Aimbot.Enabled, function(state)
-	NovusHub.Configurations.Aimbot.Enabled = state
-end)
-CreateToggle(combatPanel, "Strict Team Check Validation", NovusHub.Configurations.Aimbot.TeamCheck, function(state)
-	NovusHub.Configurations.Aimbot.TeamCheck = state
-	NovusHub.Configurations.ESP.TeamCheck = state
-end)
-CreateToggle(combatPanel, "Velocity Ballistics Prediction", NovusHub.Configurations.Aimbot.Prediction, function(state)
-	NovusHub.Configurations.Aimbot.Prediction = state
-end)
+-- ============================================================
+-- LINE OF SIGHT
+-- ============================================================
 
-CreateToggle(visualsPanel, "Player Chams Highlight Suite", NovusHub.Configurations.ESP.Enabled, function(state)
-	NovusHub.Configurations.ESP.Enabled = state
-end)
-CreateToggle(visualsPanel, "Engine Fullbright Lighting", NovusHub.Configurations.Visuals.Fullbright, function(state)
-	NovusHub.Configurations.Visuals.Fullbright = state
-	Lighting.Brightness = state and 2.5 or 1
-	Lighting.GlobalShadows = not state
-end)
+local function HasLineOfSight(camera, character, targetPart)
+	if not Config.Aimbot.RequireLineOfSight then
+		return true
+	end
 
-CreateToggle(playerPanel, "WalkSpeed Booster Mod", NovusHub.Configurations.Player.WalkSpeedBoost, function(state)
-	NovusHub.Configurations.Player.WalkSpeedBoost = state
-end)
-CreateToggle(playerPanel, "Infinite Jump Injection", NovusHub.Configurations.Player.InfiniteJump, function(state)
-	NovusHub.Configurations.Player.InfiniteJump = state
-end)
-CreateToggle(playerPanel, "Collision Noclip Bypass", NovusHub.Configurations.Player.Noclip, function(state)
-	NovusHub.Configurations.Player.Noclip = state
-end)
+	local origin = camera.CFrame.Position
+	local direction = targetPart.Position - origin
 
-CreateToggle(miscPanel, "FPS Unlocker Cap (999)", NovusHub.Configurations.Misc.FPSUnlocker, function(state)
-	setfpscap(999)
-end)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {
+		LocalPlayer.Character
+	}
 
--- Tab Switcher Logic
-local function createTabButton(name, targetPanel, order)
-	local btn = Instance.new("TextButton")
-	btn.Name = name .. "Tab"
-	btn.Parent = TabBar
-	btn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
-	btn.BorderSizePixel = 0
-	btn.Size = UDim2.new(1, 0, 0, 40)
-	btn.Font = Enum.Font.GothamBold
-	btn.Text = "  " .. name
-	btn.TextColor3 = Color3.fromRGB(160, 160, 175)
-	btn.TextSize = 13
-	btn.TextXAlignment = Enum.TextXAlignment.Left
-	btn.LayoutOrder = order
+	local result = Workspace:Raycast(origin, direction, params)
 
-	btn.MouseButton1Click:Connect(function()
-		for _, p in pairs(Panels) do
-			p.Visible = false
-		end
-		targetPanel.Visible = true
-	end)
+	if not result then
+		return true
+	end
+
+	return result.Instance:IsDescendantOf(character)
 end
 
-createTabButton("Combat", combatPanel, 1)
-createTabButton("Visuals", visualsPanel, 2)
-createTabButton("Player", playerPanel, 3)
-createTabButton("Misc", miscPanel, 4)
+-- ============================================================
+-- TARGET SELECTION
+-- ============================================================
 
-CloseButton.MouseButton1Click:Connect(function()
-	ScreenGui:Destroy()
-end)
+local function FindBestTarget(camera)
+	local screenCenter = camera.ViewportSize / 2
 
-local isMinimized = false
-MinimizeButton.MouseButton1Click:Connect(function()
-	isMinimized = not isMinimized
-	ContentPanel.Visible = not isMinimized
-	TabBar.Visible = not isMinimized
-	MainFrame.Size = isMinimized and UDim2.new(0, 580, 0, 45) or UDim2.new(0, 580, 0, 440)
-end)
+	local bestTarget = nil
+	local bestDistance = Config.Aimbot.FOV
 
-local MobileButton = Instance.new("TextButton")
-MobileButton.Name = "MobileButton"
-MobileButton.Parent = ScreenGui
-MobileButton.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
-MobileButton.BorderColor3 = Color3.fromRGB(0, 220, 255)
-MobileButton.BorderSizePixel = 2
-MobileButton.Position = UDim2.new(0, 20, 0.4, 0)
-MobileButton.Size = UDim2.new(0, 50, 0, 50)
-MobileButton.Font = Enum.Font.GothamBold
-MobileButton.Text = "NOV"
-MobileButton.TextColor3 = Color3.fromRGB(0, 220, 255)
-MobileButton.TextSize = 12
-MobileButton.Draggable = true
+	for _, player in ipairs(Players:GetPlayers()) do
 
-MobileButton.MouseButton1Click:Connect(function()
-	MainFrame.Visible = not MainFrame.Visible
-end)
+		if IsEnemy(player) then
 
--- Track Key Down and Key Up Events for Hold-to-Aim (Key E)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if input.KeyCode == NovusHub.Configurations.Aimbot.Keybind then
-		NovusHub.Configurations.Aimbot.IsHoldingKey = true
-	end
-end)
+			local character, humanoid, targetPart =
+				GetValidCharacter(player)
 
-UserInputService.InputEnded:Connect(function(input, gameProcessed)
-	if input.KeyCode == NovusHub.Configurations.Aimbot.Keybind then
-		NovusHub.Configurations.Aimbot.IsHoldingKey = false
-	end
-end)
+			if character and humanoid and targetPart then
 
--- FULLY CORRECTED AIMBOT ENGINE (v4.5)
--- Now strictly requires Master Toggle to be ON AND the keybind (E) to be held down.
-RunService.RenderStepped:Connect(function()
-	if NovusHub.Configurations.Aimbot.Enabled and NovusHub.Configurations.Aimbot.IsHoldingKey then
-		local camera = Workspace.CurrentCamera
-		if not camera then return end
+				local screenPosition, onScreen =
+					camera:WorldToViewportPoint(targetPart.Position)
 
-		local closestTarget = nil
-		local shortestDistance = math.huge
-		local screenCenter = camera.ViewportSize / 2
+				if onScreen and screenPosition.Z > 0 then
 
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer then
-				local isTeammate = NovusHub.Configurations.Aimbot.TeamCheck and player.Team and player.Team == LocalPlayer.Team
-				if not isTeammate then
-					local character = player.Character
-					if character then
-						local humanoid = character:FindFirstChildOfClass("Humanoid")
-						local targetPart = character:FindFirstChild(NovusHub.Configurations.Aimbot.TargetPart) or character:FindFirstChild("HumanoidRootPart")
+					local screenPoint =
+						Vector2.new(screenPosition.X, screenPosition.Y)
 
-						if humanoid and humanoid.Health > 0 and targetPart then
-							local pos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
-							if onScreen then
-								local screenVector = Vector2.new(pos.X, pos.Y)
-								local magnitude = (screenVector - screenCenter).Magnitude
-								if magnitude <= NovusHub.Configurations.Aimbot.FOV and magnitude < shortestDistance then
-									shortestDistance = magnitude
-									closestTarget = targetPart
-								end
-							end
-						end
-					end
-				end
-			end
-		end
+					local distance =
+						(screenPoint - screenCenter).Magnitude
 
-		if closestTarget then
-			local finalPosition = closestTarget.Position
-			if NovusHub.Configurations.Aimbot.Prediction and closestTarget.Parent then
-				local hrp = closestTarget.Parent:FindFirstChild("HumanoidRootPart")
-				if hrp then
-					finalPosition = finalPosition + (hrp.AssemblyLinearVelocity * NovusHub.Configurations.Aimbot.PredictionFactor)
-				end
-			end
-			
-			local targetCFrame = CFrame.new(camera.CFrame.Position, finalPosition)
-			camera.CFrame = camera.CFrame:Lerp(targetCFrame, NovusHub.Configurations.Aimbot.Smoothness)
-		end
-	end
-end)
+					if distance <= bestDistance then
 
--- ESP Chams Rendering Engine
-RunService.RenderStepped:Connect(function()
-	if NovusHub.Configurations.ESP.Enabled then
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer then
-				local character = player.Character
-				if character and character:FindFirstChild("HumanoidRootPart") then
-					local isTeammate = NovusHub.Configurations.ESP.TeamCheck and player.Team and player.Team == LocalPlayer.Team
-					if not isTeammate then
-						if not character:FindFirstChild("NovusChamsESP") then
-							local highlight = Instance.new("Highlight")
-							highlight.Name = "NovusChamsESP"
-							highlight.Adornee = character
-							highlight.FillColor = Color3.fromRGB(255, 40, 40)
-							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-							highlight.FillTransparency = 0.45
-							highlight.OutlineTransparency = 0.1
-							highlight.Parent = character
-						end
-					else
-						if character:FindFirstChild("NovusChamsESP") then
-							character.NovusChamsESP:Destroy()
+						if HasLineOfSight(
+							camera,
+							character,
+							targetPart
+						) then
+
+							bestDistance = distance
+
+							bestTarget = {
+								Player = player,
+								Character = character,
+								Humanoid = humanoid,
+								Part = targetPart
+							}
 						end
 					end
 				end
 			end
 		end
 	end
+
+	return bestTarget
+end
+
+-- ============================================================
+-- AIM ASSIST
+-- ============================================================
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+
+	if input.KeyCode == Config.Aimbot.Keybind then
+		Config.Aimbot.IsHoldingKey = true
+	end
 end)
 
--- Player Modifier Loop
-RunService.Stepped:Connect(function()
-	local character = LocalPlayer.Character
-	if character then
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid and NovusHub.Configurations.Player.WalkSpeedBoost then
-			humanoid.WalkSpeed = NovusHub.Configurations.Player.SpeedMultiplier
-		end
+UserInputService.InputEnded:Connect(function(input)
+	if input.KeyCode == Config.Aimbot.Keybind then
+		Config.Aimbot.IsHoldingKey = false
+	end
+end)
 
-		if NovusHub.Configurations.Player.Noclip then
-			for _, part in ipairs(character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
+local CurrentTarget = nil
+
+RunService.RenderStepped:Connect(function()
+
+	if not Config.Aimbot.Enabled then
+		CurrentTarget = nil
+		return
+	end
+
+	if not Config.Aimbot.IsHoldingKey then
+		CurrentTarget = nil
+		return
+	end
+
+	local camera = Workspace.CurrentCamera
+
+	if not camera then
+		return
+	end
+
+	-- Validate existing target first.
+	if CurrentTarget then
+
+		local player = CurrentTarget.Player
+
+		if not IsEnemy(player) then
+			CurrentTarget = nil
+		else
+			local character, humanoid, targetPart =
+				GetValidCharacter(player)
+
+			if not character
+				or not humanoid
+				or not targetPart
+				or not HasLineOfSight(
+					camera,
+					character,
+					targetPart
+				) then
+
+				CurrentTarget = nil
+			else
+				CurrentTarget.Character = character
+				CurrentTarget.Humanoid = humanoid
+				CurrentTarget.Part = targetPart
+			end
+		end
+	end
+
+	-- Only acquire a new target when necessary.
+	if not CurrentTarget then
+		CurrentTarget = FindBestTarget(camera)
+	end
+
+	if not CurrentTarget then
+		return
+	end
+
+	local targetPart = CurrentTarget.Part
+
+	if not targetPart or not targetPart.Parent then
+		CurrentTarget = nil
+		return
+	end
+
+	local finalPosition = targetPart.Position
+
+	-- Velocity prediction.
+	if Config.Aimbot.Prediction then
+
+		local root =
+			CurrentTarget.Character:FindFirstChild(
+				"HumanoidRootPart"
+			)
+
+		if root then
+			finalPosition =
+				finalPosition
+				+ root.AssemblyLinearVelocity
+				* Config.Aimbot.PredictionFactor
+		end
+	end
+
+	local targetCFrame =
+		CFrame.lookAt(
+			camera.CFrame.Position,
+			finalPosition
+		)
+
+	camera.CFrame =
+		camera.CFrame:Lerp(
+			targetCFrame,
+			math.clamp(
+				Config.Aimbot.Smoothness,
+				0,
+				1
+			)
+		)
+end)
+
+-- ============================================================
+-- ESP
+-- ============================================================
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "NovusESP"
+ESPFolder.Parent = Workspace
+
+local function RemoveESP(character)
+	if not character then
+		return
+	end
+
+	local highlight =
+		character:FindFirstChild("NovusChamsESP")
+
+	if highlight then
+		highlight:Destroy()
+	end
+end
+
+local function AddESP(character)
+	if not character then
+		return
+	end
+
+	if character:FindFirstChild("NovusChamsESP") then
+		return
+	end
+
+	local highlight = Instance.new("Highlight")
+
+	highlight.Name = "NovusChamsESP"
+	highlight.Adornee = character
+
+	highlight.FillColor =
+		Color3.fromRGB(255, 40, 40)
+
+	highlight.OutlineColor =
+		Color3.fromRGB(255, 255, 255)
+
+	highlight.FillTransparency = 0.45
+	highlight.OutlineTransparency = 0.1
+
+	highlight.DepthMode =
+		Enum.HighlightDepthMode.AlwaysOnTop
+
+	highlight.Parent = character
+end
+
+RunService.RenderStepped:Connect(function()
+
+	for _, player in ipairs(Players:GetPlayers()) do
+
+		if player ~= LocalPlayer then
+
+			local character = player.Character
+
+			if Config.ESP.Enabled
+				and character
+				and IsESPEnemy(player) then
+
+				AddESP(character)
+
+			elseif character then
+
+				RemoveESP(character)
 			end
 		end
 	end
 end)
 
-UserInputService.JumpRequest:Connect(function()
-	if NovusHub.Configurations.Player.InfiniteJump then
-		local character = LocalPlayer.Character
-		if character then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-			end
-		end
+-- ============================================================
+-- CLEANUP WHEN PLAYERS LEAVE
+-- ============================================================
+
+Players.PlayerRemoving:Connect(function(player)
+
+	if CurrentTarget
+		and CurrentTarget.Player == player then
+
+		CurrentTarget = nil
 	end
 end)
 
-print("Novus Hub Mega Monolith v4.5 Fixed Keybind Active!")
+print("Novus Aim Assist / ESP core loaded.")
