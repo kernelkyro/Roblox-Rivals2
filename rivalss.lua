@@ -1,6 +1,6 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.2)
--- Patched MouseLocation Aimbot Engine & Camera Viewport Fix
+-- NOVUS HUB - ROBLOX RIVALS (MEGA MONOLITHIC EDITION v4.3)
+-- Fully Patched Aimbot Core with Character Model & Humanoid Validation
 -- ============================================================================
 
 local Players = game:GetService("Players")
@@ -13,30 +13,26 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 local NovusHub = {
-	Version = "4.2.0",
+	Version = "4.3.0",
 	Codename = "Monolith",
 	Active = true,
 	Configurations = {
 		Aimbot = {
 			Enabled = false,
 			Keybind = Enum.KeyCode.E,
-			Smoothness = 0.12,
-			FOV = 180,
+			Smoothness = 0.2,
+			FOV = 350,
 			TargetPart = "Head",
-			VisibleCheck = false,
 			TeamCheck = true,
 			Prediction = true,
-			PredictionFactor = 0.04
+			PredictionFactor = 0.035
 		},
 		ESP = {
 			Enabled = false,
-			TeamCheck = true,
-			MaxDistance = 2000
+			TeamCheck = true
 		},
 		Visuals = {
-			Fullbright = false,
-			FOVChanger = false,
-			FOVValue = 95
+			Fullbright = false
 		},
 		Player = {
 			WalkSpeedBoost = false,
@@ -52,8 +48,8 @@ local NovusHub = {
 
 -- Safe CoreGui Root Cleanup & Injection
 pcall(function()
-	if CoreGui:FindFirstChild("NovusHubMonolithFixed") then
-		CoreGui.NovusHubMonolithFixed:Destroy()
+	if CoreGui:FindFirstChild("NovusHubMonolithPatched") then
+		CoreGui.NovusHubMonolithPatched:Destroy()
 	end
 end)
 
@@ -64,7 +60,7 @@ if not successCheck then
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NovusHubMonolithFixed"
+ScreenGui.Name = "NovusHubMonolithPatched"
 ScreenGui.Parent = ParentTarget
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
@@ -89,7 +85,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 45)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Fixed Aimbot v4.2]"
+TitleBar.Text = "  Novus Hub | Rivals [Patched Aimbot v4.3]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -207,7 +203,7 @@ local function CreateToggle(parent, labelText, initialState, callback)
 	return { Set = trigger, Get = function() return state end }
 end
 
--- Populate Combat Panel
+-- Populate Panels
 CreateToggle(combatPanel, "Aimbot Matrix Execution", NovusHub.Configurations.Aimbot.Enabled, function(state)
 	NovusHub.Configurations.Aimbot.Enabled = state
 end)
@@ -219,7 +215,6 @@ CreateToggle(combatPanel, "Velocity Ballistics Prediction", NovusHub.Configurati
 	NovusHub.Configurations.Aimbot.Prediction = state
 end)
 
--- Populate Visuals Panel
 CreateToggle(visualsPanel, "Player Chams Highlight Suite", NovusHub.Configurations.ESP.Enabled, function(state)
 	NovusHub.Configurations.ESP.Enabled = state
 end)
@@ -229,7 +224,6 @@ CreateToggle(visualsPanel, "Engine Fullbright Lighting", NovusHub.Configurations
 	Lighting.GlobalShadows = not state
 end)
 
--- Populate Player Panel
 CreateToggle(playerPanel, "WalkSpeed Booster Mod", NovusHub.Configurations.Player.WalkSpeedBoost, function(state)
 	NovusHub.Configurations.Player.WalkSpeedBoost = state
 end)
@@ -240,7 +234,6 @@ CreateToggle(playerPanel, "Collision Noclip Bypass", NovusHub.Configurations.Pla
 	NovusHub.Configurations.Player.Noclip = state
 end)
 
--- Populate Misc Panel
 CreateToggle(miscPanel, "FPS Unlocker Cap (999)", NovusHub.Configurations.Misc.FPSUnlocker, function(state)
 	setfpscap(999)
 end)
@@ -273,7 +266,6 @@ createTabButton("Visuals", visualsPanel, 2)
 createTabButton("Player", playerPanel, 3)
 createTabButton("Misc", miscPanel, 4)
 
--- Window Controls
 CloseButton.MouseButton1Click:Connect(function()
 	ScreenGui:Destroy()
 end)
@@ -286,7 +278,6 @@ MinimizeButton.MouseButton1Click:Connect(function()
 	MainFrame.Size = isMinimized and UDim2.new(0, 580, 0, 45) or UDim2.new(0, 580, 0, 440)
 end)
 
--- Floating Mobile Button
 local MobileButton = Instance.new("TextButton")
 MobileButton.Name = "MobileButton"
 MobileButton.Parent = ScreenGui
@@ -305,7 +296,7 @@ MobileButton.MouseButton1Click:Connect(function()
 	MainFrame.Visible = not MainFrame.Visible
 end)
 
--- FIXED High-Performance Aimbot Engine Core
+-- FULLY REBUILT & PATCHED AIMBOT ENGINE (v4.3)
 RunService.RenderStepped:Connect(function()
 	if NovusHub.Configurations.Aimbot.Enabled then
 		local camera = Workspace.CurrentCamera
@@ -320,14 +311,16 @@ RunService.RenderStepped:Connect(function()
 				local isTeammate = NovusHub.Configurations.Aimbot.TeamCheck and player.Team and player.Team == LocalPlayer.Team
 				if not isTeammate then
 					local character = player.Character
-					if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+					if character then
+						local humanoid = character:FindFirstChildOfClass("Humanoid")
 						local targetPart = character:FindFirstChild(NovusHub.Configurations.Aimbot.TargetPart) or character:FindFirstChild("HumanoidRootPart")
-						if targetPart then
+
+						if humanoid and humanoid.Health > 0 and targetPart then
 							local pos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
 							if onScreen then
 								local screenVector = Vector2.new(pos.X, pos.Y)
 								local magnitude = (screenVector - viewportCenter).Magnitude
-								if magnitude < NovusHub.Configurations.Aimbot.FOV and magnitude < shortestDistance then
+								if magnitude <= NovusHub.Configurations.Aimbot.FOV and magnitude < shortestDistance then
 									shortestDistance = magnitude
 									closestTarget = targetPart
 								end
@@ -340,9 +333,11 @@ RunService.RenderStepped:Connect(function()
 
 		if closestTarget then
 			local finalDestination = closestTarget.Position
-			if NovusHub.Configurations.Aimbot.Prediction and closestTarget.Parent:FindFirstChild("HumanoidRootPart") then
-				local hrp = closestTarget.Parent.HumanoidRootPart
-				finalDestination = finalDestination + (hrp.AssemblyLinearVelocity * NovusHub.Configurations.Aimbot.PredictionFactor)
+			if NovusHub.Configurations.Aimbot.Prediction and closestTarget.Parent then
+				local hrp = closestTarget.Parent:FindFirstChild("HumanoidRootPart")
+				if hrp then
+					finalDestination = finalDestination + (hrp.AssemblyLinearVelocity * NovusHub.Configurations.Aimbot.PredictionFactor)
+				end
 			end
 			camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, finalDestination), NovusHub.Configurations.Aimbot.Smoothness)
 		end
@@ -389,7 +384,7 @@ RunService.Stepped:Connect(function()
 		end
 
 		if NovusHub.Configurations.Player.Noclip then
-			for _, part in ipairs(character:GetDescendants()) do
+			for _, part in idpairs and ipairs(character:GetDescendants()) or ipairs(character:GetDescendants()) do
 				if part:IsA("BasePart") then
 					part.CanCollide = false
 				end
@@ -410,4 +405,4 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
-print("Novus Hub Mega Monolith v4.2 Fixed Successfully!")
+print("Novus Hub Mega Monolith v4.3 Successfully Deployed!")
