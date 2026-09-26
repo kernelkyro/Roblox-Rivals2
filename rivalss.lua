@@ -19,6 +19,25 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 --========================================================
+-- RE-EXECUTION CLEANUP
+--========================================================
+-- If this script was already executed in this client,
+-- remove its old UI and RenderStep before starting again.
+-- This prevents multiple copies from stacking up.
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+pcall(function()
+	RunService:UnbindFromRenderStep("AimAssistMain")
+end)
+
+local ExistingUI = PlayerGui:FindFirstChild("AimAssistUI")
+
+if ExistingUI then
+	ExistingUI:Destroy()
+end
+
+--========================================================
 -- GLOBALS (Fixed Execution Scope)
 --========================================================
 
@@ -89,8 +108,6 @@ end)
 --========================================================
 -- GUI
 --========================================================
-
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AimAssistUI"
