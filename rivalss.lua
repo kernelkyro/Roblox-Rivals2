@@ -1,5 +1,5 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (ULTRA MEGA MONOLITHIC EDITION v5.3)
+-- NOVUS HUB - ROBLOX RIVALS (ULTRA MEGA MONOLITHIC EDITION v5.4)
 -- Enterprise-Grade Security, Advanced Aimbot, Silent Headshot, Chams ESP & Custom UI
 -- ============================================================================
 
@@ -17,12 +17,12 @@ local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local NovusHub = {
-    Version = "5.3.0",
+    Version = "5.4.0",
     Codename = "EnterpriseMonolith",
     Active = true,
     Configurations = {
         Aimbot = {
-            Enabled = true,
+            Enabled = false,
             Keybind = Enum.KeyCode.E,
             AllowRightClick = true,
             IsHoldingKey = false,
@@ -30,33 +30,33 @@ local NovusHub = {
             FOV = 450,
             TargetPart = "Head",
             TeamCheck = true,
-            WallCheck = true,
+            WallCheck = false,
             Prediction = true,
             PredictionFactor = 0.042,
             AlwaysHeadshot = true
         },
         ESP = {
-            Enabled = true,
+            Enabled = false,
             TeamCheck = true,
-            Boxes = true,
-            Tracers = true,
-            Names = true,
-            HealthBars = true,
-            Distance = true,
-            Chams = true,
+            Boxes = false,
+            Tracers = false,
+            Names = false,
+            HealthBars = false,
+            Distance = false,
+            Chams = false,
             ChamsFillColor = Color3.fromRGB(255, 40, 40),
             ChamsOutlineColor = Color3.fromRGB(255, 255, 255)
         },
         Visuals = {
-            Fullbright = true,
-            Crosshair = true,
+            Fullbright = false,
+            Crosshair = false,
             FOVColor = Color3.fromRGB(0, 220, 255),
             CustomSkybox = false
         },
         Player = {
             WalkSpeedBoost = false,
             SpeedMultiplier = 24,
-            InfiniteJump = true,
+            InfiniteJump = false,
             Noclip = false,
             BunnyHop = false,
             Fly = false,
@@ -72,7 +72,7 @@ local NovusHub = {
     }
 }
 
-local UI_NAME = "NovusHubUltraMonolithv53"
+local UI_NAME = "NovusHubUltraMonolithv54"
 
 pcall(function()
     RunService:UnbindFromRenderStep("NovusAimbotEngine")
@@ -137,7 +137,7 @@ local function Notify(title, message, duration)
     end)
 end
 
-Notify("Novus Hub v5.3", "Fixed Raycast & Targeting Pipeline Initialized!", 4)
+Notify("Novus Hub v5.4", "Raycast Fallback & Clean State Initialized!", 4)
 
 -- Advanced Main Panel UI Structure
 local MainFrame = Instance.new("Frame")
@@ -159,7 +159,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 48)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Fixed v5.3]"
+TitleBar.Text = "  Novus Hub | Rivals [Clean v5.4]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -281,7 +281,7 @@ local function CreateToggle(parent, labelText, initialState, callback)
     }
 end
 
--- Populate Panel UI Elements based on initial table configs
+-- Populate Panel UI Elements with clean inactive defaults
 CreateToggle(combatPanel, "Aimbot Master Toggle", NovusHub.Configurations.Aimbot.Enabled, function(state)
     NovusHub.Configurations.Aimbot.Enabled = state
 end)
@@ -424,30 +424,41 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- Corrected Safe Wall Check Raycasting Helper
+-- Completely Safe Bullet-Proof Raycast Wall-Check Wrapper
 local function IsPartVisible(targetPart, character)
     local camera = Workspace.CurrentCamera
-    if not camera or not targetPart then return false end
-    local origin = camera.CFrame.Position
-    local destination = targetPart.Position
-    local direction = destination - origin
+    if not camera or not targetPart then return true end -- Default visible if nil
     
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude -- Corrected Enum property reference
-    local ignoreList = {}
-    if LocalPlayer.Character then
-        table.insert(ignoreList, LocalPlayer.Character)
-    end
-    if character then
-        table.insert(ignoreList, character)
-    end
-    params.FilterDescendantsInstances = ignoreList
+    local success, result = pcall(function()
+        local origin = camera.CFrame.Position
+        local destination = targetPart.Position
+        local direction = destination - origin
+        
+        local params = RaycastParams.new()
+        pcall(function()
+            params.FilterType = Enum.RaycastFilterType.Exclude
+        end)
+        
+        local ignoreList = {}
+        if LocalPlayer.Character then
+            table.insert(ignoreList, LocalPlayer.Character)
+        end
+        if character then
+            table.insert(ignoreList, character)
+        end
+        params.FilterDescendantsInstances = ignoreList
+        
+        local rayResult = Workspace:Raycast(origin, direction, params)
+        return rayResult == nil
+    end)
     
-    local result = Workspace:Raycast(origin, direction, params)
-    return result == nil
+    if success then
+        return result
+    end
+    return true
 end
 
--- Robust Character Finder (Handles Lobby to Match Server Transitions)
+-- Robust Character Finder
 local function GetValidCharacter(player)
     if not player then return nil end
     local char = player.Character
@@ -466,13 +477,13 @@ if getgenv then
         if queue_on_teleport then
             queue_on_teleport([[
                 task.wait(2)
-                loadstring(game:HttpGet("https://raw.kernelkyro/Roblox-Rivals2/main/rivalss.lua"))()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/kernelkyro/Roblox-Rivals2/main/rivalss.lua"))()
             ]])
         end
     end)
 end
 
--- Aimbot Core Engine Loop
+-- Aimbot Core Engine Loop (Fixed targeting query checks)
 RunService.RenderStepped:Connect(function()
     if NovusHub.Configurations.Aimbot.Enabled and NovusHub.Configurations.Aimbot.IsHoldingKey then
         local camera = Workspace.CurrentCamera
@@ -624,4 +635,4 @@ task.spawn(function()
     end
 end)
 
-print("Novus Hub Ultra Monolith v5.3 Successfully Executed!")
+print("Novus Hub Ultra Monolith v5.4 Fully Initialized & Secured!")
