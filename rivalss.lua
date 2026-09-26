@@ -376,24 +376,21 @@ end)
 
 local function isEnemy(player)
 
-	if not player then
+	if not player or player == LocalPlayer then
 		return false
 	end
 
-	if player == LocalPlayer then
-		return false
-	end
-
-	-- Normal Roblox Team system.
+	-- Strict team validation:
+	-- If team information is unavailable, do NOT assume the player is an enemy.
 	if IGNORE_TEAMMATES then
-
 		local myTeam = LocalPlayer.Team
 		local theirTeam = player.Team
 
-		if myTeam ~= nil
-			and theirTeam ~= nil
-			and myTeam == theirTeam then
+		if myTeam == nil or theirTeam == nil then
+			return false
+		end
 
+		if myTeam == theirTeam then
 			return false
 		end
 	end
@@ -798,12 +795,8 @@ local function refreshESP()
 
 			else
 
-				local existing =
-					ESPObjects[player]
-
-				if existing then
-					existing.Enabled = false
-				end
+				-- Remove the highlight entirely when the player is no longer an enemy.
+				removeESP(player)
 			end
 		end
 	end
@@ -885,11 +878,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		ESP_ENABLED = not ESP_ENABLED
 
 		if not ESP_ENABLED then
-
 			for player in pairs(ESPObjects) do
 				removeESP(player)
 			end
-
 		end
 
 		updateESPUI()
@@ -955,11 +946,32 @@ RunService:BindToRenderStep(
 
 			else
 
-				local newTarget, newPart =
-					findBestTarget()
+				-- Keep the current target while it remains valid.
+				-- Only search for another target when the current one is invalid.
+				local keepCurrent = false
 
-				CurrentTarget = newTarget
-				CurrentTargetPart = newPart
+				if CurrentTarget and CurrentTargetPart then
+					if isEnemy(CurrentTarget) then
+						local character = CurrentTarget.Character
+						local targetHumanoid = character
+							and character:FindFirstChildOfClass("Humanoid")
+						local targetRoot = character
+							and character:FindFirstChild("HumanoidRootPart")
+
+						if targetHumanoid
+							and targetHumanoid.Health > 0
+							and targetRoot
+							and getScreenDistance(CurrentTargetPart) <= FOV_RADIUS
+							and (targetRoot.Position - RootPart.Position).Magnitude <= MAX_AIM_DISTANCE
+							and canSee(CurrentTargetPart) then
+							keepCurrent = true
+						end
+					end
+				end
+
+				if not keepCurrent then
+					CurrentTarget, CurrentTargetPart = findBestTarget()
+				end
 
 				if CurrentTarget
 					and CurrentTargetPart
