@@ -21,11 +21,37 @@ local LocalPlayer = Players.LocalPlayer
 --========================================================
 -- RE-EXECUTION CLEANUP
 --========================================================
--- If this script was already executed in this client,
--- remove its old UI and RenderStep before starting again.
--- This prevents multiple copies from stacking up.
+-- Repeated execution used to stack:
+--   • old BindToRenderStep bindings
+--   • old UI instances
+--   • old :Connect() connections (InputBegan, InputChanged,
+--     PlayerAdded, PlayerRemoving, CharacterAdded, etc.)
+--
+-- We keep a global registry of every connection this script
+-- makes. When the script is executed again, the previous
+-- instance's connections are all disconnected first.
+--========================================================
 
+-- Disconnect the previous instance's connections (if any).
+if getgenv and getgenv().__AimAssistConnections then
+	for _, conn in ipairs(getgenv().__AimAssistConnections) do
+		pcall(function()
+			conn:Disconnect()
+		end)
+	end
+	getgenv().__AimAssistConnections = nil
+end
+
+-- Also nuke the previous execution's ESP folder if the
+-- ScreenGui was already destroyed before we got here.
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+do
+	local oldESP = PlayerGui:FindFirstChild("EnemyESP")
+	if oldESP then
+		oldESP:Destroy()
+	end
+end
 
 pcall(function()
 	RunService:UnbindFromRenderStep("AimAssistMain")
@@ -35,6 +61,17 @@ local ExistingUI = PlayerGui:FindFirstChild("AimAssistUI")
 
 if ExistingUI then
 	ExistingUI:Destroy()
+end
+
+-- Fresh connection registry for this execution.
+local Connections = {}
+getgenv().__AimAssistConnections = Connections
+
+-- Wrapper: every connection goes through here so it can be
+-- cleaned up on the next execution.
+local function track(connection)
+	table.insert(Connections, connection)
+	return connection
 end
 
 --========================================================
@@ -100,10 +137,10 @@ end
 
 updateCharacter()
 
-LocalPlayer.CharacterAdded:Connect(function()
+track(LocalPlayer.CharacterAdded:Connect(function()
 	task.wait(0.25)
 	updateCharacter()
-end)
+end))
 
 --========================================================
 -- GUI
@@ -292,7 +329,7 @@ end
 -- AIM TOGGLE
 --========================================================
 
-AimToggle.MouseButton1Click:Connect(function()
+track(AimToggle.MouseButton1Click:Connect(function()
 	AIM_ENABLED = not AIM_ENABLED
 
 	if not AIM_ENABLED then
@@ -300,17 +337,17 @@ AimToggle.MouseButton1Click:Connect(function()
 	end
 
 	updateAimUI()
-end)
+end))
 
 --========================================================
 -- ESP TOGGLE
 --========================================================
 
-ESPToggle.MouseButton1Click:Connect(function()
+track(ESPToggle.MouseButton1Click:Connect(function()
 	ESP_ENABLED = not ESP_ENABLED
 
 	updateESPUI()
-end)
+end))
 
 --========================================================
 -- MINIMIZE
@@ -318,7 +355,7 @@ end)
 
 local minimized = false
 
-Minimize.MouseButton1Click:Connect(function()
+track(Minimize.MouseButton1Click:Connect(function()
 	minimized = not minimized
 
 	if minimized then
@@ -340,7 +377,7 @@ Minimize.MouseButton1Click:Connect(function()
 
 		Minimize.Text = "—"
 	end
-end)
+end))
 
 --========================================================
 -- DRAGGING
@@ -350,7 +387,7 @@ local dragging = false
 local dragStart
 local startPosition
 
-Title.InputBegan:Connect(function(input)
+track(Title.InputBegan:Connect(function(input)
 
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
@@ -359,15 +396,15 @@ Title.InputBegan:Connect(function(input)
 		dragStart = input.Position
 		startPosition = Main.Position
 
-		input.Changed:Connect(function()
+		track(input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
 			end
-		end)
+		end))
 	end
-end)
+end))
 
-UserInputService.InputChanged:Connect(function(input)
+track(UserInputService.InputChanged:Connect(function(input)
 
 	if not dragging then
 		return
@@ -385,7 +422,7 @@ UserInputService.InputChanged:Connect(function(input)
 			startPosition.Y.Offset + delta.Y
 		)
 	end
-end)
+end))
 
 --========================================================
 -- TEAM CHECK
@@ -835,7 +872,7 @@ local function setupPlayer(player)
 		return
 	end
 
-	player.CharacterAdded:Connect(function()
+	track(player.CharacterAdded:Connect(function()
 
 		task.wait(0.15)
 
@@ -844,22 +881,22 @@ local function setupPlayer(player)
 		if ESP_ENABLED and isEnemy(player) then
 			createESP(player)
 		end
-	end)
+	end))
 
-	player.CharacterRemoving:Connect(function()
+	track(player.CharacterRemoving:Connect(function()
 		removeESP(player)
-	end)
+	end))
 end
 
 for _, player in ipairs(Players:GetPlayers()) do
 	setupPlayer(player)
 end
 
-Players.PlayerAdded:Connect(function(player)
+track(Players.PlayerAdded:Connect(function(player)
 	setupPlayer(player)
-end)
+end))
 
-Players.PlayerRemoving:Connect(function(player)
+track(Players.PlayerRemoving:Connect(function(player)
 
 	removeESP(player)
 
@@ -867,7 +904,7 @@ Players.PlayerRemoving:Connect(function(player)
 		CurrentTarget = nil
 		CurrentTargetPart = nil
 	end
-end)
+end))
 
 --========================================================
 -- PC KEYBOARD HOTKEYS
@@ -875,7 +912,7 @@ end)
 -- G = ENEMY ESP
 --========================================================
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
+track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if gameProcessed then
 		return
@@ -935,7 +972,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 	end
-end)
+end))
 
 --========================================================
 -- MAIN LOOP
