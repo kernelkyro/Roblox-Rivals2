@@ -1,5 +1,5 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (ULTRA MEGA MONOLITHIC EDITION v5.0)
+-- NOVUS HUB - ROBLOX RIVALS (ULTRA MEGA MONOLITHIC EDITION v5.1)
 -- Enterprise-Grade Security, Advanced Aimbot, Silent Headshot, Chams ESP & Custom UI
 -- ============================================================================
 
@@ -13,17 +13,15 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 local NovusHub = {
-    Version = "5.0.0",
+    Version = "5.1.0",
     Codename = "EnterpriseMonolith",
     Active = true,
     Configurations = {
         Aimbot = {
-            Enabled = true,
+            Enabled = false,
             Keybind = Enum.KeyCode.E,
             AllowRightClick = true,
             IsHoldingKey = false,
@@ -37,29 +35,29 @@ local NovusHub = {
             AlwaysHeadshot = true
         },
         ESP = {
-            Enabled = true,
+            Enabled = false,
             TeamCheck = true,
-            Boxes = true,
-            Tracers = true,
-            Names = true,
-            HealthBars = true,
-            Distance = true,
-            Chams = true,
+            Boxes = false,
+            Tracers = false,
+            Names = false,
+            HealthBars = false,
+            Distance = false,
+            Chams = false,
             ChamsFillColor = Color3.fromRGB(255, 40, 40),
             ChamsOutlineColor = Color3.fromRGB(255, 255, 255)
         },
         Visuals = {
-            Fullbright = true,
-            Crosshair = true,
+            Fullbright = false,
+            Crosshair = false,
             FOVColor = Color3.fromRGB(0, 220, 255),
             CustomSkybox = false
         },
         Player = {
-            WalkSpeedBoost = true,
+            WalkSpeedBoost = false,
             SpeedMultiplier = 30,
-            InfiniteJump = true,
-            Noclip = true,
-            BunnyHop = true,
+            InfiniteJump = false,
+            Noclip = false,
+            BunnyHop = false,
             Fly = false,
             FlySpeed = 50
         },
@@ -67,13 +65,13 @@ local NovusHub = {
             FPSUnlocker = true,
             AntiAFK = true,
             ChatSpammer = false,
-            HitboxExtender = true,
+            HitboxExtender = false,
             HitboxSize = 4
         }
     }
 }
 
-local UI_NAME = "NovusHubUltraMonolithv50"
+local UI_NAME = "NovusHubUltraMonolithv51"
 
 pcall(function()
     RunService:UnbindFromRenderStep("NovusAimbotEngine")
@@ -138,7 +136,7 @@ local function Notify(title, message, duration)
     end)
 end
 
-Notify("Novus Hub v5.0", "Enterprise Monolith initialized successfully!", 4)
+Notify("Novus Hub v5.1", "Matchmaking-Persistent Engine Initialized!", 4)
 
 -- Advanced Main Panel UI Structure
 local MainFrame = Instance.new("Frame")
@@ -160,7 +158,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 48)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Enterprise Monolith v5.0]"
+TitleBar.Text = "  Novus Hub | Rivals [Persistent Monolith v5.1]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -282,7 +280,7 @@ local function CreateToggle(parent, labelText, initialState, callback)
     }
 end
 
--- Populate Panel UI Elements
+-- Populate Panel UI Elements (Default OFF to fix lobby auto-activation bug)
 CreateToggle(combatPanel, "Aimbot Master Toggle", NovusHub.Configurations.Aimbot.Enabled, function(state)
     NovusHub.Configurations.Aimbot.Enabled = state
 end)
@@ -307,6 +305,7 @@ end)
 
 CreateToggle(visualsPanel, "Player Chams Highlight Suite", NovusHub.Configurations.ESP.Chams, function(state)
     NovusHub.Configurations.ESP.Chams = state
+    NovusHub.Configurations.ESP.Enabled = state
 end)
 
 CreateToggle(visualsPanel, "Bounding Boxes ESP", NovusHub.Configurations.ESP.Boxes, function(state)
@@ -381,9 +380,6 @@ createTabButton("Misc", miscPanel, 4)
 createTabButton("Configs", configPanel, 5)
 
 CloseButton.MouseButton1Click:Connect(function()
-    RunService:UnbindFromRenderStep("NovusAimbotEngine")
-    RunService:UnbindFromRenderStep("NovusESPEngine")
-    RunService:UnbindFromRenderStep("NovusPlayerEngine")
     ScreenGui:Destroy()
 end)
 
@@ -451,11 +447,23 @@ local function IsPartVisible(targetPart, character)
     return result == nil
 end
 
--- Aimbot Core Engine (Smooth Lock & Headshot Priority)
-RunService:BindToRenderStep("NovusAimbotEngine", Enum.RenderPriority.Camera.Value + 1, function()
+-- Matchmaking & Respawn Persistence Helper (Bypasses Lobby -> Match Server resets)
+local function GetActiveCharacter(player)
+    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            return player.Character
+        end
+    end
+    return nil
+end
+
+-- Aimbot Core Engine (Persistent across matchmaking transitions)
+RunService.RenderStepped:Connect(function()
     if NovusHub.Configurations.Aimbot.Enabled and NovusHub.Configurations.Aimbot.IsHoldingKey then
         local camera = Workspace.CurrentCamera
-        if not camera then return end
+        local currentCharacter = GetActiveCharacter(LocalPlayer)
+        if not camera or not currentCharacter then return end
         
         local closestTarget = nil
         local shortestDistance = math.huge
@@ -465,7 +473,7 @@ RunService:BindToRenderStep("NovusAimbotEngine", Enum.RenderPriority.Camera.Valu
             if player ~= LocalPlayer then
                 local isTeammate = NovusHub.Configurations.Aimbot.TeamCheck and player.Team and player.Team == LocalPlayer.Team
                 if not isTeammate then
-                    local character = player.Character
+                    local character = GetActiveCharacter(player)
                     if character then
                         local humanoid = character:FindFirstChildOfClass("Humanoid")
                         local targetPartName = NovusHub.Configurations.Aimbot.AlwaysHeadshot and "Head" or NovusHub.Configurations.Aimbot.TargetPart
@@ -505,39 +513,37 @@ RunService:BindToRenderStep("NovusAimbotEngine", Enum.RenderPriority.Camera.Valu
     end
 end)
 
--- Comprehensive ESP Chams & Highlighting Engine
+-- Comprehensive ESP Chams & Highlighting Engine (Persistent Hook)
 RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            local character = player.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                local highlight = character:FindFirstChild("NovusChamsESP")
-                local isTeammate = NovusHub.Configurations.ESP.TeamCheck and player.Team and player.Team == LocalPlayer.Team
-                
-                if NovusHub.Configurations.ESP.Enabled and NovusHub.Configurations.ESP.Chams and not isTeammate then
-                    if not highlight then
-                        highlight = Instance.new("Highlight")
-                        highlight.Name = "NovusChamsESP"
-                        highlight.Adornee = character
-                        highlight.FillColor = NovusHub.Configurations.ESP.ChamsFillColor
-                        highlight.OutlineColor = NovusHub.Configurations.ESP.ChamsOutlineColor
-                        highlight.FillTransparency = 0.4
-                        highlight.OutlineTransparency = 0.1
-                        highlight.Parent = character
-                    end
-                else
-                    if highlight then
-                        highlight:Destroy()
-                    end
+            local character = GetActiveCharacter(player)
+            local highlight = player.Character and player.Character:FindFirstChild("NovusChamsESP")
+            local isTeammate = NovusHub.Configurations.ESP.TeamCheck and player.Team and player.Team == LocalPlayer.Team
+            
+            if NovusHub.Configurations.ESP.Enabled and NovusHub.Configurations.ESP.Chams and character and not isTeammate then
+                if not highlight then
+                    highlight = Instance.new("Highlight")
+                    highlight.Name = "NovusChamsESP"
+                    highlight.Adornee = character
+                    highlight.FillColor = NovusHub.Configurations.ESP.ChamsFillColor
+                    highlight.OutlineColor = NovusHub.Configurations.ESP.ChamsOutlineColor
+                    highlight.FillTransparency = 0.4
+                    highlight.OutlineTransparency = 0.1
+                    highlight.Parent = character
+                end
+            else
+                if highlight then
+                    highlight:Destroy()
                 end
             end
         end
     end
 end)
 
--- Player Modifier Loop (WalkSpeed, Noclip, BunnyHop)
+-- Player Modifier Loop (WalkSpeed, Noclip, BunnyHop with Character Respawns)
 RunService.Stepped:Connect(function()
-    local character = LocalPlayer.Character
+    local character = GetActiveCharacter(LocalPlayer)
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid and NovusHub.Configurations.Player.WalkSpeedBoost then
@@ -561,12 +567,15 @@ RunService.Stepped:Connect(function()
         -- Hitbox Expander Feature
         if NovusHub.Configurations.Misc.HitboxExtender then
             for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.Size = Vector3.new(NovusHub.Configurations.Misc.HitboxSize, NovusHub.Configurations.Misc.HitboxSize, NovusHub.Configurations.Misc.HitboxSize)
-                        hrp.Transparency = 0.8
-                        hrp.CanCollide = false
+                if player ~= LocalPlayer then
+                    local targetChar = GetActiveCharacter(player)
+                    if targetChar then
+                        local hrp = targetChar:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            hrp.Size = Vector3.new(NovusHub.Configurations.Misc.HitboxSize, NovusHub.Configurations.Misc.HitboxSize, NovusHub.Configurations.Misc.HitboxSize)
+                            hrp.Transparency = 0.8
+                            hrp.CanCollide = false
+                        end
                     end
                 end
             end
@@ -577,7 +586,7 @@ end)
 -- Infinite Jump Listener
 UserInputService.JumpRequest:Connect(function()
     if NovusHub.Configurations.Player.InfiniteJump then
-        local character = LocalPlayer.Character
+        local character = GetActiveCharacter(LocalPlayer)
         if character then
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if humanoid then
@@ -601,4 +610,4 @@ task.spawn(function()
     end
 end)
 
-print("Novus Hub Ultra Monolith v5.0 Fully Loaded & Operating Safely!")
+print("Novus Hub Ultra Monolith v5.1 Ready - Matchmaking Safe & Configured OFF by Default!")
