@@ -433,7 +433,7 @@ local function IsPartVisible(targetPart, character)
     local direction = destination - origin
     
     local params = RaycastParams.new()
-    params.FilterType = RaycastParamsType.Exclude
+    params.FilterType = RaycastFilterType.Exclude -- FIXED HERE
     local ignoreList = {}
     if LocalPlayer.Character then
         table.insert(ignoreList, LocalPlayer.Character)
