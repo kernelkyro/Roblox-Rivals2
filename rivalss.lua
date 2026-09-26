@@ -8,6 +8,8 @@
 --      └─ AimAssist (LocalScript)
 -- ========================================================
 
+print("[AimAssist] Script started")
+
 --========================================================
 -- SERVICES
 --========================================================
@@ -21,22 +23,7 @@ local LocalPlayer = Players.LocalPlayer
 --========================================================
 -- RE-EXECUTION CLEANUP
 --========================================================
--- Repeated execution used to stack:
---   • old BindToRenderStep bindings
---   • old UI instances
---   • old :Connect() connections (InputBegan, InputChanged,
---     PlayerAdded, PlayerRemoving, CharacterAdded, etc.)
---
--- We keep a registry of every connection this script makes.
--- When the script is executed again, the previous instance's
--- connections are all disconnected first.
---
--- Works in both executors (getgenv) and plain Roblox scripts
--- (_G fallback), so it won't error if getgenv is unavailable.
---========================================================
 
--- Pick a persistent global table. Executors have getgenv();
--- plain Roblox scripts do not, so fall back to _G.
 local REGISTRY
 if typeof(getgenv) == "function" then
 	REGISTRY = getgenv()
@@ -44,7 +31,6 @@ else
 	REGISTRY = _G
 end
 
--- Disconnect the previous instance's connections (if any).
 if REGISTRY.__AimAssistConnections then
 	for _, conn in ipairs(REGISTRY.__AimAssistConnections) do
 		pcall(function()
@@ -56,37 +42,45 @@ end
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Nuke a leftover ESP folder from a prior execution.
-do
-	local oldESP = PlayerGui:FindFirstChild("EnemyESP")
-	if oldESP then
-		oldESP:Destroy()
+-- Figure out the best place to parent the GUI.
+-- Prefer CoreGui (survives game-side PlayerGui manipulation).
+local GUIParent = PlayerGui
+pcall(function()
+	if typeof(gethui) == "function" then
+		GUIParent = gethui()
+	else
+		GUIParent = game:GetService("CoreGui")
 	end
+end)
+
+print("[AimAssist] GUIParent =", GUIParent:GetFullName())
+
+-- Clean up leftovers from any previous execution in BOTH parents.
+for _, parent in ipairs({ PlayerGui, GUIParent }) do
+	pcall(function()
+		local oldUI = parent:FindFirstChild("AimAssistUI")
+		if oldUI then oldUI:Destroy() end
+
+		local oldESP = parent:FindFirstChild("EnemyESP")
+		if oldESP then oldESP:Destroy() end
+	end)
 end
 
 pcall(function()
 	RunService:UnbindFromRenderStep("AimAssistMain")
 end)
 
-local ExistingUI = PlayerGui:FindFirstChild("AimAssistUI")
-
-if ExistingUI then
-	ExistingUI:Destroy()
-end
-
 -- Fresh connection registry for this execution.
 local Connections = {}
 REGISTRY.__AimAssistConnections = Connections
 
--- Wrapper: every connection goes through here so it can be
--- cleaned up on the next execution.
 local function track(connection)
 	table.insert(Connections, connection)
 	return connection
 end
 
 --========================================================
--- GLOBALS (Fixed Execution Scope)
+-- GLOBALS
 --========================================================
 
 local Camera = workspace.CurrentCamera
@@ -100,28 +94,14 @@ local CurrentTargetPart = nil
 local AIM_ENABLED = false
 local ESP_ENABLED = false
 
--- Very large aim area
 local FOV_RADIUS = 1500
-
--- Very large world range
 local MAX_AIM_DISTANCE = 3000
-
--- Aggressive camera tracking
 local AIM_STRENGTH = 0.75
-
--- Keeps the current target from rapidly switching
 local TARGET_STICKINESS = 250
-
--- Special close-range handling
 local CLOSE_RANGE = 18
-
--- Teammates are NEVER targeted/highlighted
 local IGNORE_TEAMMATES = true
-
--- Don't aim through walls
 local AIM_WALL_CHECK = true
 
--- ESP settings
 local ESP_FILL_TRANSPARENCY = 0.72
 local ESP_OUTLINE_TRANSPARENCY = 0
 
@@ -161,7 +141,11 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AimAssistUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = PlayerGui
+ScreenGui.DisplayOrder = 999999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = GUIParent
+
+print("[AimAssist] ScreenGui parented to", ScreenGui.Parent and ScreenGui.Parent:GetFullName() or "nil")
 
 --========================================================
 -- MAIN
@@ -449,7 +433,6 @@ local function isEnemy(player)
 		return true
 	end
 
-	-- Primary check: normal Roblox Team objects.
 	local myTeam = LocalPlayer.Team
 	local theirTeam = player.Team
 
@@ -457,9 +440,6 @@ local function isEnemy(player)
 		return myTeam ~= theirTeam
 	end
 
-	-- Fallback: some games assign TeamColor/Neutral instead of a Team object.
-	-- If both players are explicitly on the same non-neutral TeamColor,
-	-- treat them as teammates. Otherwise allow them as potential enemies.
 	if not LocalPlayer.Neutral and not player.Neutral then
 		if LocalPlayer.TeamColor == player.TeamColor then
 			return false
@@ -525,7 +505,6 @@ local function getAimPart(player)
 	local distance =
 		(targetRoot.Position - RootPart.Position).Magnitude
 
-	-- Close-range targeting.
 	if distance <= CLOSE_RANGE then
 
 		local torso =
@@ -539,7 +518,6 @@ local function getAimPart(player)
 		return targetRoot
 	end
 
-	-- Normal range: prefer Head.
 	local head = character:FindFirstChild("Head")
 
 	if head and head:IsA("BasePart") then
@@ -681,14 +659,12 @@ local function getTargetScore(player, part)
 
 	local score = screenDistance
 
-	-- Strong close-range priority.
 	if distance <= CLOSE_RANGE then
 		score -= 500
 	elseif distance <= 40 then
 		score -= 150
 	end
 
-	-- Target stickiness.
 	if player == CurrentTarget then
 		score -= TARGET_STICKINESS
 	end
@@ -866,7 +842,6 @@ local function refreshESP()
 
 			else
 
-				-- Remove the highlight entirely when the player is no longer an enemy.
 				removeESP(player)
 			end
 		end
@@ -921,6 +896,7 @@ end))
 -- PC KEYBOARD HOTKEYS
 -- F = AIM ASSIST
 -- G = ENEMY ESP
+-- H = MINIMIZE / RESTORE
 --========================================================
 
 track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -929,7 +905,6 @@ track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 
-	-- F = Aim Assist
 	if input.KeyCode == Enum.KeyCode.F then
 
 		AIM_ENABLED = not AIM_ENABLED
@@ -943,7 +918,6 @@ track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		updateAimUI()
 	end
 
-	-- G = Enemy ESP
 	if input.KeyCode == Enum.KeyCode.G then
 
 		ESP_ENABLED = not ESP_ENABLED
@@ -957,7 +931,6 @@ track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		updateESPUI()
 	end
 
-	-- H = Minimize / Restore UI
 	if input.KeyCode == Enum.KeyCode.H then
 
 		minimized = not minimized
@@ -1000,10 +973,6 @@ RunService:BindToRenderStep(
 			return
 		end
 
-		--============================================
-		-- AIM
-		--============================================
-
 		if AIM_ENABLED then
 
 			if not Character
@@ -1017,8 +986,6 @@ RunService:BindToRenderStep(
 
 			else
 
-				-- Keep the current target while it remains valid.
-				-- Only search for another target when the current one is invalid.
 				local keepCurrent = false
 
 				if CurrentTarget and CurrentTargetPart then
@@ -1104,10 +1071,6 @@ RunService:BindToRenderStep(
 
 		end
 
-		--============================================
-		-- ESP
-		--============================================
-
 		refreshESP()
 	end
 )
@@ -1118,3 +1081,5 @@ RunService:BindToRenderStep(
 
 updateAimUI()
 updateESPUI()
+
+print("[AimAssist] Script fully loaded")
