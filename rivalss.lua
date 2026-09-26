@@ -380,17 +380,23 @@ local function isEnemy(player)
 		return false
 	end
 
-	-- Strict team validation:
-	-- If team information is unavailable, do NOT assume the player is an enemy.
-	if IGNORE_TEAMMATES then
-		local myTeam = LocalPlayer.Team
-		local theirTeam = player.Team
+	if not IGNORE_TEAMMATES then
+		return true
+	end
 
-		if myTeam == nil or theirTeam == nil then
-			return false
-		end
+	-- Primary check: normal Roblox Team objects.
+	local myTeam = LocalPlayer.Team
+	local theirTeam = player.Team
 
-		if myTeam == theirTeam then
+	if myTeam ~= nil and theirTeam ~= nil then
+		return myTeam ~= theirTeam
+	end
+
+	-- Fallback: some games assign TeamColor/Neutral instead of a Team object.
+	-- If both players are explicitly on the same non-neutral TeamColor,
+	-- treat them as teammates. Otherwise allow them as potential enemies.
+	if not LocalPlayer.Neutral and not player.Neutral then
+		if LocalPlayer.TeamColor == player.TeamColor then
 			return false
 		end
 	end
