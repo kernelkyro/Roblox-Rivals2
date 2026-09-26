@@ -27,25 +27,36 @@ local LocalPlayer = Players.LocalPlayer
 --   • old :Connect() connections (InputBegan, InputChanged,
 --     PlayerAdded, PlayerRemoving, CharacterAdded, etc.)
 --
--- We keep a global registry of every connection this script
--- makes. When the script is executed again, the previous
--- instance's connections are all disconnected first.
+-- We keep a registry of every connection this script makes.
+-- When the script is executed again, the previous instance's
+-- connections are all disconnected first.
+--
+-- Works in both executors (getgenv) and plain Roblox scripts
+-- (_G fallback), so it won't error if getgenv is unavailable.
 --========================================================
 
+-- Pick a persistent global table. Executors have getgenv();
+-- plain Roblox scripts do not, so fall back to _G.
+local REGISTRY
+if typeof(getgenv) == "function" then
+	REGISTRY = getgenv()
+else
+	REGISTRY = _G
+end
+
 -- Disconnect the previous instance's connections (if any).
-if getgenv and getgenv().__AimAssistConnections then
-	for _, conn in ipairs(getgenv().__AimAssistConnections) do
+if REGISTRY.__AimAssistConnections then
+	for _, conn in ipairs(REGISTRY.__AimAssistConnections) do
 		pcall(function()
 			conn:Disconnect()
 		end)
 	end
-	getgenv().__AimAssistConnections = nil
+	REGISTRY.__AimAssistConnections = nil
 end
 
--- Also nuke the previous execution's ESP folder if the
--- ScreenGui was already destroyed before we got here.
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Nuke a leftover ESP folder from a prior execution.
 do
 	local oldESP = PlayerGui:FindFirstChild("EnemyESP")
 	if oldESP then
@@ -65,7 +76,7 @@ end
 
 -- Fresh connection registry for this execution.
 local Connections = {}
-getgenv().__AimAssistConnections = Connections
+REGISTRY.__AimAssistConnections = Connections
 
 -- Wrapper: every connection goes through here so it can be
 -- cleaned up on the next execution.
@@ -945,7 +956,7 @@ track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 		updateESPUI()
 	end
-		
+
 	-- H = Minimize / Restore UI
 	if input.KeyCode == Enum.KeyCode.H then
 
