@@ -1,5 +1,5 @@
 -- ============================================================================
--- NOVUS HUB - ROBLOX RIVALS (ULTRA MEGA MONOLITHIC EDITION v5.1)
+-- NOVUS HUB - ROBLOX RIVALS (ULTRA MEGA MONOLITHIC EDITION v5.2)
 -- Enterprise-Grade Security, Advanced Aimbot, Silent Headshot, Chams ESP & Custom UI
 -- ============================================================================
 
@@ -13,15 +13,16 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local NovusHub = {
-    Version = "5.1.0",
+    Version = "5.2.0",
     Codename = "EnterpriseMonolith",
     Active = true,
     Configurations = {
         Aimbot = {
-            Enabled = false,
+            Enabled = true,
             Keybind = Enum.KeyCode.E,
             AllowRightClick = true,
             IsHoldingKey = false,
@@ -35,29 +36,29 @@ local NovusHub = {
             AlwaysHeadshot = true
         },
         ESP = {
-            Enabled = false,
+            Enabled = true,
             TeamCheck = true,
-            Boxes = false,
-            Tracers = false,
-            Names = false,
-            HealthBars = false,
-            Distance = false,
-            Chams = false,
+            Boxes = true,
+            Tracers = true,
+            Names = true,
+            HealthBars = true,
+            Distance = true,
+            Chams = true,
             ChamsFillColor = Color3.fromRGB(255, 40, 40),
             ChamsOutlineColor = Color3.fromRGB(255, 255, 255)
         },
         Visuals = {
-            Fullbright = false,
-            Crosshair = false,
+            Fullbright = true,
+            Crosshair = true,
             FOVColor = Color3.fromRGB(0, 220, 255),
             CustomSkybox = false
         },
         Player = {
-            WalkSpeedBoost = false,
+            WalkSpeedBoost = true,
             SpeedMultiplier = 30,
-            InfiniteJump = false,
-            Noclip = false,
-            BunnyHop = false,
+            InfiniteJump = true,
+            Noclip = true,
+            BunnyHop = true,
             Fly = false,
             FlySpeed = 50
         },
@@ -65,13 +66,13 @@ local NovusHub = {
             FPSUnlocker = true,
             AntiAFK = true,
             ChatSpammer = false,
-            HitboxExtender = false,
+            HitboxExtender = true,
             HitboxSize = 4
         }
     }
 }
 
-local UI_NAME = "NovusHubUltraMonolithv51"
+local UI_NAME = "NovusHubUltraMonolithv52"
 
 pcall(function()
     RunService:UnbindFromRenderStep("NovusAimbotEngine")
@@ -136,7 +137,7 @@ local function Notify(title, message, duration)
     end)
 end
 
-Notify("Novus Hub v5.1", "Matchmaking-Persistent Engine Initialized!", 4)
+Notify("Novus Hub v5.2", "Cross-Server Matchmaking Guard Initialized!", 4)
 
 -- Advanced Main Panel UI Structure
 local MainFrame = Instance.new("Frame")
@@ -158,7 +159,7 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 48)
 TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "  Novus Hub | Rivals [Persistent Monolith v5.1]"
+TitleBar.Text = "  Novus Hub | Rivals [Matchmaking Fixed v5.2]"
 TitleBar.TextColor3 = Color3.fromRGB(0, 220, 255)
 TitleBar.TextSize = 15
 TitleBar.TextXAlignment = Enum.TextXAlignment.Left
@@ -280,7 +281,7 @@ local function CreateToggle(parent, labelText, initialState, callback)
     }
 end
 
--- Populate Panel UI Elements (Default OFF to fix lobby auto-activation bug)
+-- Populate Panel UI Elements
 CreateToggle(combatPanel, "Aimbot Master Toggle", NovusHub.Configurations.Aimbot.Enabled, function(state)
     NovusHub.Configurations.Aimbot.Enabled = state
 end)
@@ -305,7 +306,6 @@ end)
 
 CreateToggle(visualsPanel, "Player Chams Highlight Suite", NovusHub.Configurations.ESP.Chams, function(state)
     NovusHub.Configurations.ESP.Chams = state
-    NovusHub.Configurations.ESP.Enabled = state
 end)
 
 CreateToggle(visualsPanel, "Bounding Boxes ESP", NovusHub.Configurations.ESP.Boxes, function(state)
@@ -447,23 +447,37 @@ local function IsPartVisible(targetPart, character)
     return result == nil
 end
 
--- Matchmaking & Respawn Persistence Helper (Bypasses Lobby -> Match Server resets)
-local function GetActiveCharacter(player)
-    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+-- Robust Character Finder (Handles Lobby to Match Server Transitions)
+local function GetValidCharacter(player)
+    if not player then return nil end
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
         if humanoid and humanoid.Health > 0 then
-            return player.Character
+            return char
         end
     end
     return nil
 end
 
--- Aimbot Core Engine (Persistent across matchmaking transitions)
+-- Teleport / Match Server Persistence Hook (Auto-re-executes or re-binds UI on teleport)
+if getgenv then
+    pcall(function()
+        if queue_on_teleport then
+            queue_on_teleport([[
+                task.wait(2)
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/kernelkyro/Roblox-Rivals2/main/rivalss.lua"))()
+            ]])
+        end
+    end)
+end
+
+-- Aimbot Core Engine (Robust Multi-Server Loop)
 RunService.RenderStepped:Connect(function()
     if NovusHub.Configurations.Aimbot.Enabled and NovusHub.Configurations.Aimbot.IsHoldingKey then
         local camera = Workspace.CurrentCamera
-        local currentCharacter = GetActiveCharacter(LocalPlayer)
-        if not camera or not currentCharacter then return end
+        local myChar = GetValidCharacter(LocalPlayer)
+        if not camera or not myChar then return end
         
         local closestTarget = nil
         local shortestDistance = math.huge
@@ -473,7 +487,7 @@ RunService.RenderStepped:Connect(function()
             if player ~= LocalPlayer then
                 local isTeammate = NovusHub.Configurations.Aimbot.TeamCheck and player.Team and player.Team == LocalPlayer.Team
                 if not isTeammate then
-                    local character = GetActiveCharacter(player)
+                    local character = GetValidCharacter(player)
                     if character then
                         local humanoid = character:FindFirstChildOfClass("Humanoid")
                         local targetPartName = NovusHub.Configurations.Aimbot.AlwaysHeadshot and "Head" or NovusHub.Configurations.Aimbot.TargetPart
@@ -513,11 +527,11 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Comprehensive ESP Chams & Highlighting Engine (Persistent Hook)
+-- Comprehensive ESP Chams & Highlighting Engine
 RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            local character = GetActiveCharacter(player)
+            local character = GetValidCharacter(player)
             local highlight = player.Character and player.Character:FindFirstChild("NovusChamsESP")
             local isTeammate = NovusHub.Configurations.ESP.TeamCheck and player.Team and player.Team == LocalPlayer.Team
             
@@ -541,9 +555,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Player Modifier Loop (WalkSpeed, Noclip, BunnyHop with Character Respawns)
+-- Player Modifier Loop
 RunService.Stepped:Connect(function()
-    local character = GetActiveCharacter(LocalPlayer)
+    local character = GetValidCharacter(LocalPlayer)
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid and NovusHub.Configurations.Player.WalkSpeedBoost then
@@ -568,7 +582,7 @@ RunService.Stepped:Connect(function()
         if NovusHub.Configurations.Misc.HitboxExtender then
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer then
-                    local targetChar = GetActiveCharacter(player)
+                    local targetChar = GetValidCharacter(player)
                     if targetChar then
                         local hrp = targetChar:FindFirstChild("HumanoidRootPart")
                         if hrp then
@@ -586,7 +600,7 @@ end)
 -- Infinite Jump Listener
 UserInputService.JumpRequest:Connect(function()
     if NovusHub.Configurations.Player.InfiniteJump then
-        local character = GetActiveCharacter(LocalPlayer)
+        local character = GetValidCharacter(LocalPlayer)
         if character then
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if humanoid then
@@ -610,4 +624,4 @@ task.spawn(function()
     end
 end)
 
-print("Novus Hub Ultra Monolith v5.1 Ready - Matchmaking Safe & Configured OFF by Default!")
+print("Novus Hub Ultra Monolith v5.2 Fully Loaded - Matchmaking Teleport Bug Fixed!")
